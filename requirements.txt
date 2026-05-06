@@ -1,0 +1,12 @@
+fastapi==0.115.5
+uvicorn[standard]==0.32.1
+python-multipart==0.0.20
+numpy==2.1.3
+scipy==1.14.1
+soundfile==0.12.1
+reedsolo==1.7.0
+torch==2.5.1
+# Optional — only needed by core/neural_codec/prosody/ + app/test_prosody_modem.py
+# + app/test_stacked_channel.py.  Pulls in legacy pkg_resources, so on Python ≥3.12
+# you may need: pip install "setuptools<80" pyworld
+# pyworld==0.3.5

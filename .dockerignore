@@ -1,0 +1,44 @@
+# Training data and features
+tests/data/raw/*.wav
+tests/data/features/
+
+# Heavy research checkpoints we don't deploy
+core/neural_codec/sequence/ckpt_seq_n128_adv.pt
+core/neural_codec/sequence/ckpt_seq_adv.pt
+
+# Demo audio outputs (large, not needed at runtime)
+core/neural_codec/demo_outputs/
+core/neural_codec/adversarial/demo_outputs/
+core/neural_codec/adversarial/n128_demo_outputs/
+core/neural_codec/adversarial/realism_samples/
+core/neural_codec/sequence/demo_outputs/
+core/neural_codec/sequence/realism_samples/
+core/neural_codec/composite_attempt/demo_outputs/
+core/neural_codec/cellular/listen_samples/
+core/neural_codec/stego/listen_samples/
+
+# Old hand-coded modem
+core/triz_pitch/
+core/band_energy_*.py
+core/hybrid_codec_approach.py
+core/opus_reverse_engineering.py
+core/production_modem.py
+core/slow_ghost.py
+
+# Tools / utils not needed at runtime
+tools/
+utils/
+tests/
+
+# Python / OS
+__pycache__/
+*.pyc
+.DS_Store
+.git/
+.venv/
+venv/
+.pytest_cache/
+
+# Misc docs and dev artifacts
+*.md
+!README.md

@@ -1,0 +1,357 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>voice-channel-poc</title>
+  <style>
+    :root { color-scheme: light dark; }
+    body {
+      font: 15px/1.5 -apple-system, system-ui, sans-serif;
+      max-width: 720px; margin: 24px auto; padding: 0 16px;
+    }
+    h1 { font-size: 1.4em; margin: 0 0 4px; }
+    .sub { color: #888; margin-bottom: 24px; font-size: 0.9em; }
+    fieldset { border: 1px solid #ccc; border-radius: 8px; padding: 16px; margin: 16px 0; }
+    legend { padding: 0 8px; font-weight: 600; }
+    label.channel { display: block; padding: 8px; border-radius: 6px; cursor: pointer; }
+    label.channel:hover { background: rgba(127,127,127,0.08); }
+    label.channel input { margin-right: 8px; }
+    label.channel .name { font-weight: 600; }
+    label.channel .desc { font-size: 0.85em; color: #888; margin-left: 24px; }
+    textarea, input[type=file] {
+      width: 100%; box-sizing: border-box; font: inherit;
+      border: 1px solid #ccc; border-radius: 6px; padding: 10px;
+    }
+    textarea { min-height: 80px; resize: vertical; }
+    button {
+      background: #2563eb; color: white; border: 0; border-radius: 6px;
+      padding: 10px 16px; font: inherit; cursor: pointer;
+    }
+    button.danger { background: #dc2626; }
+    button:hover { background: #1d4ed8; }
+    button.danger:hover { background: #b91c1c; }
+    button:disabled { background: #888; cursor: not-allowed; }
+    .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    audio { width: 100%; margin-top: 12px; }
+    .meta { font-size: 0.85em; color: #888; margin-top: 8px; white-space: pre-wrap; }
+    .err { color: #c00; }
+    .ok { color: #080; }
+    pre { background: rgba(127,127,127,0.1); padding: 10px; border-radius: 6px; overflow-x: auto; }
+    a.dl { font-size: 0.85em; }
+    .vu {
+      height: 12px; background: rgba(127,127,127,0.15); border-radius: 6px;
+      overflow: hidden; margin-top: 8px;
+    }
+    .vu > div {
+      height: 100%; background: linear-gradient(90deg, #16a34a, #ca8a04, #dc2626);
+      width: 0%; transition: width 60ms linear;
+    }
+    .tabs { display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 1px solid #ccc; }
+    .tabs button {
+      background: transparent; color: inherit; border: 0; padding: 10px 16px;
+      border-bottom: 2px solid transparent; border-radius: 0; cursor: pointer;
+    }
+    .tabs button.active { border-bottom-color: #2563eb; font-weight: 600; }
+    .tab { display: none; }
+    .tab.active { display: block; }
+  </style>
+</head>
+<body>
+  <h1>voice-channel-poc</h1>
+  <p class="sub">
+    Encode text into audio on one device, play it through a real voice channel
+    (room speakers, Zoom call, phone call), listen on a second device, decode the
+    text back. Verifies whether the codec survives the actual audio path.
+  </p>
+
+  <fieldset>
+    <legend>Channel</legend>
+    <label class="channel">
+      <input type="radio" name="channel" value="opus_iid" checked>
+      <span class="name">opus_iid</span>
+      <span class="desc">3.2 kbps reliable, modem-tone carrier (Opus 24k VOIP target)</span>
+    </label>
+    <label class="channel">
+      <input type="radio" name="channel" value="stego_opus">
+      <span class="name">stego_opus</span>
+      <span class="desc">~530 bps reliable, real-speech cover with audible perturbation</span>
+    </label>
+    <label class="channel">
+      <input type="radio" name="channel" value="stego_amrnb">
+      <span class="name">stego_amrnb</span>
+      <span class="desc">~76 bps reliable, real-speech cover, AMR-NB cellular target</span>
+    </label>
+  </fieldset>
+
+  <div class="tabs">
+    <button id="tab-send-btn" class="active" data-tab="send">📤 Send (encode + play)</button>
+    <button id="tab-listen-btn" data-tab="listen">📥 Listen (mic + decode)</button>
+  </div>
+
+  <!-- ========== SEND TAB ========== -->
+  <div id="tab-send" class="tab active">
+    <fieldset>
+      <legend>Type message and play</legend>
+      <textarea id="text" placeholder="Hello world.">Hello world. This is a test.</textarea>
+      <div class="row" style="margin-top:12px;">
+        <button id="encode-btn">Encode</button>
+        <button id="encode-play-btn">Encode &amp; play 🔊</button>
+        <span id="encode-status" class="meta"></span>
+      </div>
+      <div id="audio-block" style="display:none; margin-top:12px;">
+        <audio id="audio-player" controls></audio>
+        <a id="download-link" class="dl" download>Download .wav</a>
+        <div id="encode-meta" class="meta"></div>
+      </div>
+    </fieldset>
+    <p class="meta">
+      Tip: open this page on your phone (sender), open it on a second device
+      (laptop) on the <strong>📥 Listen</strong> tab. Type text, hit
+      <strong>Encode &amp; play</strong>. The laptop's microphone captures the
+      audio and decodes it. Put the devices in the same Zoom call to test
+      Zoom's audio pipeline.
+    </p>
+  </div>
+
+  <!-- ========== LISTEN TAB ========== -->
+  <div id="tab-listen" class="tab">
+    <fieldset>
+      <legend>Capture mic and decode</legend>
+      <div class="row">
+        <button id="listen-start-btn">Start listening 🎤</button>
+        <button id="listen-stop-btn" class="danger" disabled>Stop &amp; decode</button>
+      </div>
+      <div class="vu"><div id="vu-bar"></div></div>
+      <div id="listen-status" class="meta">Idle.</div>
+      <div id="listen-result" class="meta" style="margin-top:12px;"></div>
+      <details style="margin-top:12px;">
+        <summary class="meta">Audio capture options</summary>
+        <label style="display:block; margin-top:8px;">
+          <input type="checkbox" id="opt-noise-suppression"> noiseSuppression (browser default: on; uncheck for raw)
+        </label>
+        <label style="display:block;">
+          <input type="checkbox" id="opt-echo-cancellation"> echoCancellation (browser default: on; uncheck for raw)
+        </label>
+        <label style="display:block;">
+          <input type="checkbox" id="opt-auto-gain-control"> autoGainControl (browser default: on; uncheck for raw)
+        </label>
+        <p class="meta">
+          When testing through Zoom, leave these off — Zoom does its own
+          processing and we want to see what survives that. When testing
+          raw acoustic loopback in the same room, leave them off too: the
+          browser-side processing would also remove the codec signal.
+        </p>
+      </details>
+    </fieldset>
+
+    <fieldset>
+      <legend>Or upload a recording</legend>
+      <input type="file" id="decode-file" accept="audio/*">
+      <div class="row" style="margin-top:12px;">
+        <button id="decode-btn">Decode upload</button>
+        <span id="decode-status" class="meta"></span>
+      </div>
+    </fieldset>
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    let lastEncode = null;
+
+    function selectedChannel() {
+      return document.querySelector('input[name=channel]:checked').value;
+    }
+
+    // ---------- tabs ----------
+    document.querySelectorAll('.tabs button').forEach(b => {
+      b.addEventListener('click', () => {
+        document.querySelectorAll('.tabs button').forEach(x => x.classList.remove('active'));
+        document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+        b.classList.add('active');
+        $('tab-' + b.dataset.tab).classList.add('active');
+      });
+    });
+
+    // ---------- encode ----------
+    async function doEncode() {
+      const text = $('text').value;
+      const channel = selectedChannel();
+      if (!text.trim()) { $('encode-status').textContent = 'Empty text.'; return null; }
+      $('encode-status').textContent = 'encoding…';
+      const fd = new FormData();
+      fd.append('channel', channel);
+      fd.append('text', text);
+      const r = await fetch('/encode', { method: 'POST', body: fd });
+      if (!r.ok) {
+        const err = await r.text();
+        $('encode-status').innerHTML = `<span class="err">error: ${err}</span>`;
+        return null;
+      }
+      const blob = await r.blob();
+      const url = URL.createObjectURL(blob);
+      $('audio-player').src = url;
+      $('download-link').href = url;
+      $('download-link').download = `encoded-${channel}.wav`;
+      $('audio-block').style.display = 'block';
+      const seconds = parseFloat(r.headers.get('X-Audio-Seconds') || '0');
+      const textBytes = parseInt(r.headers.get('X-Text-Bytes') || '0', 10);
+      const effBps = parseFloat(r.headers.get('X-Eff-Bps') || '0');
+      const notes = r.headers.get('X-Notes') || '';
+      lastEncode = { channel, text_bytes: textBytes };
+      $('encode-meta').textContent =
+        `${textBytes} bytes of text → ${seconds.toFixed(2)} s of audio @ ${Math.round(effBps)} bps reliable\n${notes}`;
+      $('encode-status').innerHTML = '<span class="ok">ok</span>';
+      return { url, blob, seconds };
+    }
+
+    $('encode-btn').addEventListener('click', async () => {
+      $('encode-btn').disabled = true; $('encode-play-btn').disabled = true;
+      try { await doEncode(); }
+      finally { $('encode-btn').disabled = false; $('encode-play-btn').disabled = false; }
+    });
+
+    $('encode-play-btn').addEventListener('click', async () => {
+      $('encode-btn').disabled = true; $('encode-play-btn').disabled = true;
+      try {
+        const r = await doEncode();
+        if (r) await $('audio-player').play();
+      }
+      finally { $('encode-btn').disabled = false; $('encode-play-btn').disabled = false; }
+    });
+
+    // ---------- listen ----------
+    let mediaStream = null;
+    let mediaRecorder = null;
+    let recChunks = [];
+    let vuRaf = null;
+
+    async function startListening() {
+      const constraints = {
+        audio: {
+          noiseSuppression: $('opt-noise-suppression').checked,
+          echoCancellation: $('opt-echo-cancellation').checked,
+          autoGainControl: $('opt-auto-gain-control').checked,
+        },
+      };
+      try {
+        mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+      } catch (e) {
+        $('listen-status').innerHTML = `<span class="err">mic permission denied: ${e}</span>`;
+        return;
+      }
+      // VU meter
+      const ac = new (window.AudioContext || window.webkitAudioContext)();
+      const src = ac.createMediaStreamSource(mediaStream);
+      const analyser = ac.createAnalyser(); analyser.fftSize = 1024;
+      src.connect(analyser);
+      const buf = new Float32Array(analyser.fftSize);
+      const tick = () => {
+        analyser.getFloatTimeDomainData(buf);
+        let peak = 0;
+        for (let i = 0; i < buf.length; i++) peak = Math.max(peak, Math.abs(buf[i]));
+        $('vu-bar').style.width = (Math.min(peak * 200, 100)) + '%';
+        vuRaf = requestAnimationFrame(tick);
+      };
+      tick();
+
+      recChunks = [];
+      // Pick an Opus-friendly mime if available; fall back to default.
+      const mimeOptions = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg'];
+      let mime = '';
+      for (const m of mimeOptions) {
+        if (window.MediaRecorder && MediaRecorder.isTypeSupported(m)) { mime = m; break; }
+      }
+      mediaRecorder = new MediaRecorder(mediaStream, mime ? { mimeType: mime } : {});
+      mediaRecorder.ondataavailable = e => { if (e.data.size > 0) recChunks.push(e.data); };
+      mediaRecorder.start(250);
+      $('listen-start-btn').disabled = true;
+      $('listen-stop-btn').disabled = false;
+      $('listen-status').textContent = `recording… (mime=${mime || 'default'})`;
+    }
+
+    async function stopListeningAndDecode() {
+      $('listen-stop-btn').disabled = true;
+      $('listen-status').textContent = 'stopping…';
+      if (vuRaf) cancelAnimationFrame(vuRaf);
+      $('vu-bar').style.width = '0%';
+
+      const stopped = new Promise(res => mediaRecorder.addEventListener('stop', res));
+      mediaRecorder.stop();
+      await stopped;
+      mediaStream.getTracks().forEach(t => t.stop());
+
+      const blob = new Blob(recChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
+      $('listen-status').textContent = `recorded ${(blob.size/1024).toFixed(1)} KB; decoding…`;
+
+      const fd = new FormData();
+      fd.append('channel', selectedChannel());
+      if (lastEncode && lastEncode.channel === selectedChannel() && lastEncode.text_bytes > 0) {
+        fd.append('expected_text_bytes', String(lastEncode.text_bytes));
+      }
+      fd.append('file', blob, 'recording' + (blob.type.includes('webm') ? '.webm' : '.bin'));
+      try {
+        const r = await fetch('/decode', { method: 'POST', body: fd });
+        const json = await r.json();
+        if (!r.ok) {
+          $('listen-status').innerHTML = `<span class="err">${json.detail || r.statusText}</span>`;
+        } else {
+          $('listen-status').innerHTML = '<span class="ok">decoded</span>';
+          const lines = [
+            `channel: ${json.channel}`,
+            `bytes recovered: ${json.n_bytes_recovered}`,
+            `FEC blocks: ${json.n_fec_blocks_corrected} ok / ${json.n_fec_blocks_failed} failed`,
+            `decoded text:`,
+          ];
+          $('listen-result').innerHTML =
+            lines.map(l => `<div>${l}</div>`).join('') +
+            `<pre>${(json.decoded_text || '').replaceAll('<', '&lt;')}</pre>`;
+        }
+      } catch (e) {
+        $('listen-status').innerHTML = `<span class="err">${e}</span>`;
+      } finally {
+        $('listen-start-btn').disabled = false;
+      }
+    }
+
+    $('listen-start-btn').addEventListener('click', startListening);
+    $('listen-stop-btn').addEventListener('click', stopListeningAndDecode);
+
+    // ---------- file upload decode (kept for completeness) ----------
+    $('decode-btn').addEventListener('click', async () => {
+      const file = $('decode-file').files[0];
+      if (!file) { $('decode-status').textContent = 'Pick a file first.'; return; }
+      $('decode-btn').disabled = true;
+      $('decode-status').textContent = 'decoding…';
+      const fd = new FormData();
+      fd.append('channel', selectedChannel());
+      if (lastEncode && lastEncode.channel === selectedChannel() && lastEncode.text_bytes > 0) {
+        fd.append('expected_text_bytes', String(lastEncode.text_bytes));
+      }
+      fd.append('file', file);
+      try {
+        const r = await fetch('/decode', { method: 'POST', body: fd });
+        const json = await r.json();
+        if (!r.ok) {
+          $('decode-status').innerHTML = `<span class="err">${json.detail || r.statusText}</span>`;
+          return;
+        }
+        $('decode-status').innerHTML = '<span class="ok">ok</span>';
+        const lines = [
+          `channel: ${json.channel}`,
+          `bytes recovered: ${json.n_bytes_recovered}`,
+          `FEC blocks: ${json.n_fec_blocks_corrected} ok / ${json.n_fec_blocks_failed} failed`,
+          `decoded text:`,
+        ];
+        $('listen-result').innerHTML =
+          lines.map(l => `<div>${l}</div>`).join('') +
+          `<pre>${(json.decoded_text || '').replaceAll('<', '&lt;')}</pre>`;
+      } catch (e) {
+        $('decode-status').innerHTML = `<span class="err">${e}</span>`;
+      } finally {
+        $('decode-btn').disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>

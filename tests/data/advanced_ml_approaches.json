@@ -1,0 +1,52 @@
+{
+  "approaches": {
+    "learned_codec_embedding": {
+      "concept": "Train end-to-end encoder/decoder for Opus survival",
+      "potential_bitrate": "5-20 kbps",
+      "timeline_weeks": 3,
+      "risk": "HIGH",
+      "feasibility": "MEDIUM"
+    },
+    "llm_semantic_compression": {
+      "concept": "Use LLM to compress data 5-10x before encoding",
+      "potential_bitrate": "10-100 kbps effective",
+      "timeline_weeks": 1,
+      "risk": "LOW",
+      "feasibility": "HIGH"
+    },
+    "vocoder_parameter_injection": {
+      "concept": "Modulate data into Opus vocoder parameters",
+      "potential_bitrate": "5-10 kbps",
+      "timeline_weeks": 2,
+      "risk": "MEDIUM",
+      "feasibility": "HIGH"
+    },
+    "adversarial_perturbations": {
+      "concept": "Use adversarial training for imperceptible data channels",
+      "potential_bitrate": "1-10 kbps",
+      "timeline_weeks": 2,
+      "risk": "MEDIUM",
+      "feasibility": "HIGH"
+    },
+    "joint_optimization": {
+      "concept": "Train encoder/decoder pair specifically for Opus codec",
+      "potential_bitrate": "5-20 kbps",
+      "timeline_weeks": 4,
+      "risk": "MEDIUM-HIGH",
+      "feasibility": "MEDIUM"
+    }
+  },
+  "hybrid_approach": {
+    "step1": "Semantic compression via LLM (5-10x reduction)",
+    "step2": "Learned codec embedding (8-15 kbps base)",
+    "step3": "Vocoder parameter injection (add 2-5 kbps)",
+    "step4": "Adversarial perturbations (add 1-3 kbps)",
+    "total_potential": "10-20+ kbps"
+  },
+  "execution_plan": {
+    "week_1": "LLM compression layer - test 5x reduction",
+    "week_2": "Train learned codec - match vs beat traditional",
+    "week_3": "Add vocoder backdoor - layer additional capacity",
+    "week_4": "Validate on real Opus - prove 10-15 kbps"
+  }
+}
