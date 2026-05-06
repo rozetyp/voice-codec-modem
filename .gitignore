@@ -63,3 +63,6 @@ tests/data/features/
 *.aiff
 *.c2
 /tmp/
+
+# ---- Internal docs archive (private; do not publish) ----
+_internal_docs_archive/
