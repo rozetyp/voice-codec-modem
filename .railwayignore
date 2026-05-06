@@ -1,0 +1,61 @@
+# Local virtual env, never deploy
+.venv/
+venv/
+env/
+
+# Git history
+.git/
+
+# Local caches
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Training data we don't need at runtime
+tests/
+
+# Tools and utils — research only, not used at runtime
+tools/
+utils/
+
+# Heavy research checkpoints not bundled into the deployed service
+core/neural_codec/sequence/
+core/neural_codec/adversarial/
+core/neural_codec/composite_attempt/
+core/neural_codec/ckpt_n32_mixed.pt
+core/neural_codec/ckpt_n64_mixed.pt
+
+# Research-only Python files we don't import from app/
+core/band_energy_decoder.py
+core/band_energy_modulation.py
+core/hybrid_codec_approach.py
+core/opus_reverse_engineering.py
+core/production_modem.py
+core/slow_ghost.py
+core/triz_pitch/
+core/neural_codec/cellular_codec_test.py
+core/neural_codec/composite_at_48k.py
+core/neural_codec/eval_real_opus.py
+core/neural_codec/neural_codec.py
+core/neural_codec/neural_with_fec.py
+core/neural_codec/opus_mode_compare.py
+core/neural_codec/stego_at_48k.py
+core/neural_codec/voice_within_voice_demo.py
+core/neural_codec/cellular/amrnb_eval_with_rep.py
+core/neural_codec/cellular/amrnb_listen.py
+core/neural_codec/cellular/listen_samples/
+core/neural_codec/cellular/stego_amrnb.py
+core/neural_codec/stego/listen_samples/
+core/neural_codec/stego/stego_codec.py
+core/neural_codec/stego/stego_listen.py
+
+# Demo audio not needed at runtime
+core/neural_codec/demo_outputs/
+
+# Markdown / docs — keep README only via .dockerignore allowance
+COMMERCIAL_APPLICATIONS.md
+CAPABILITIES.md
+applications.md
+
+# OS noise
+.DS_Store
