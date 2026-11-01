@@ -1,6 +1,7 @@
 FROM python:3.12-slim
 
-# ffmpeg + libopus + libopencore-amrnb (encoder/decoder for our channels)
+# ffmpeg + libopus. Debian's ffmpeg has no AMR-NB encoder, so the stego_amrnb pipeline
+# needs a static ffmpeg build with libopencore-amrnb (see README notes).
 RUN apt-get update && apt-get install -y --no-install-recommends \
         ffmpeg \
         libsndfile1 \

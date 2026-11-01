@@ -54,7 +54,7 @@ run "799 bps | real speech + hiss | Opus 48k AUDIO" 0 \
 if ffmpeg -hide_banner -encoders 2>/dev/null | grep -q libopencore_amrnb; then
   run "AMR-NB 12.2k | real speech + hiss | repetition coding (report only)" '' \
     "$PY" $NC/cellular/amrnb_eval_with_rep.py
-else skip "AMR-NB 12.2k | real speech + hiss" "this ffmpeg has no libopencore_amrnb (Homebrew's doesn't; Debian/Ubuntu's does)"; fi
+else skip "AMR-NB 12.2k | real speech + hiss" "this ffmpeg has no libopencore_amrnb encoder (see README notes)"; fi
 
 if command -v c2enc >/dev/null; then
   run "Voice within voice | Codec2 2400 inside the 3196 bps carrier" 'EXACTLY recovered' \

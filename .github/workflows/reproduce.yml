@@ -21,10 +21,15 @@ jobs:
         with:
           python-version: "3.12"
       - name: System codecs
+        # Ubuntu's ffmpeg has no AMR-NB encoder; the johnvansickle.com static build has libopus and libopencore-amrnb.
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends ffmpeg codec2 libopus0
-          ffmpeg -hide_banner -encoders | grep -E "libopus|libopencore_amrnb"
+          sudo apt-get install -y --no-install-recommends codec2 libopus0
+          curl -fsSL https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz | tar -xJ -C /tmp
+          sudo cp /tmp/ffmpeg-*-amd64-static/ffmpeg /usr/local/bin/
+          ffmpeg -hide_banner -version | head -1
+          ffmpeg -hide_banner -encoders | grep -q libopus
+          ffmpeg -hide_banner -encoders | grep -q libopencore_amrnb
       - name: Python deps (CPU torch)
         run: |
           pip install --extra-index-url https://download.pytorch.org/whl/cpu -r requirements.txt
