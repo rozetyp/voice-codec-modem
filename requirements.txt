@@ -6,8 +6,8 @@ scipy==1.14.1
 soundfile==0.12.1
 reedsolo==1.7.0
 torch==2.5.1
-# Optional — only needed by core/neural_codec/prosody/ + app/test_prosody_modem.py
-# + app/test_stacked_channel.py.  Pulls in legacy pkg_resources, so on Python ≥3.12
+# Optional — only needed by core/neural_codec/prosody/ + experiments/test_prosody_modem.py
+# + experiments/test_stacked_channel.py.  Pulls in legacy pkg_resources, so on Python ≥3.12
 # you may need: pip install "setuptools<80" pyworld
 # pyworld==0.3.5
 # Optional — only needed by core/triz_pitch/ (hand-coded modem). Needs the libopus

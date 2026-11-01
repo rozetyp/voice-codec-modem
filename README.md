@@ -3,7 +3,7 @@
 **Send digital data through a voice call.** A neural data-over-voice modem that hides bytes in speech-like audio and gets them back intact after the lossy speech codecs used by Zoom, Teams, Discord, WhatsApp and cellular voice (Opus and AMR-NB).
 
 [![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
-![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)
+![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)
 ![PyTorch](https://img.shields.io/badge/PyTorch-2.5-ee4c2c.svg)
 
 **[Live demo](https://voice-channel-poc-production.up.railway.app)** · [Results](#results) · [Quickstart](#quickstart) · [How it works](#how-it-works) · [Limitations](#limitations) · [Prior art](#prior-art)
@@ -11,6 +11,10 @@
 Voice channels are built to throw away anything that isn't speech. Classic acoustic modems (FSK, chirps) barely survive them. This project trains an encoder/decoder pair with the real codec in the training loop, so the network learns which signals the codec keeps. Plain bits, a second voice (Codec2) or signed metadata can ride on top.
 
 It's a research artifact, not a product: a reproducible map of rate vs. how natural the audio sounds vs. which channel it survives, with working code, trained checkpoints and audio you can listen to.
+
+![Spectrograms: ordinary speech; the same speech carrying 531 bps after Opus 24k; the added data signal alone; the 3196 bps modem-tone carrier](docs/spectrograms.png)
+
+<sub>Left to right, top to bottom: the cover speech; the same speech carrying 531 bps after Opus; the added data signal on its own; the 3196 bps modem-tone carrier. Rendered from the WAVs in <a href="core/neural_codec/stego/listen_samples/"><code>stego/listen_samples/</code></a> and <a href="core/neural_codec/demo_outputs/"><code>demo_outputs/</code></a>.</sub>
 
 ---
 
@@ -49,6 +53,8 @@ Every variant ships with WAV files: cover → modified → after the codec.
 The [live demo](https://voice-channel-poc-production.up.railway.app) has two tabs:
 - **Send:** encodes text and plays it.
 - **Listen:** records from your microphone and decodes.
+
+The hosted demo runs an earlier build of `app/` from before the v0.2.0 cleanup, so its labels differ slightly (it shows 530 bps for the stego mode). Run it locally (Quickstart step 3) for this exact code.
 
 Open Send on one machine and Listen on another, with a Zoom, Meet or phone call between them. Nobody has yet measured how well the signal survives a live call with default noise suppression, echo cancellation and packet loss (see [Limitations](#limitations)). If you try it, please [open an issue](https://github.com/rozetyp/voice-codec-modem/issues) with the app, the settings and whether the message decoded.
 
@@ -135,7 +141,15 @@ flowchart LR
 | `core/neural_codec/stego/ckpt_stego_p3.pt` | 531 bps (24k VOIP), 933 bps (48k AUDIO) | Real speech + hiss | Hidden in a normal-sounding call |
 | `core/neural_codec/cellular/ckpt_amrnb_real.pt` | 76 bps | Real speech + hiss | 2G/3G cellular voice |
 
-† Not in git (too large). The other checkpoints, 9–21 MB each, are committed.
+† Not in git (81 MB). Download it from the [v0.2.0 release](https://github.com/rozetyp/voice-codec-modem/releases/tag/v0.2.0) into `core/neural_codec/sequence/`:
+
+```bash
+curl -L -o core/neural_codec/sequence/ckpt_seq_adv.pt \
+  https://github.com/rozetyp/voice-codec-modem/releases/download/v0.2.0/ckpt_seq_adv.pt
+# sha256 ea718d17e69403f42dfcea5e84843c3f1db4319ed5dff1f838babd6371891b04
+```
+
+The other checkpoints, 9–21 MB each, are committed.
 
 ---
 
