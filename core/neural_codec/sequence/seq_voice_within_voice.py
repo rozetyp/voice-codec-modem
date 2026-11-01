@@ -7,11 +7,12 @@ import sys
 import tempfile
 import warnings
 warnings.filterwarnings("ignore", message=".*output with one or more elements was resized.*")
-sys.path.insert(0, str(REPO_ROOT / "core" / "neural_codec"))
-
 from pathlib import Path
-
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
+for _d in ("", "adversarial", "sequence", "stego", "cellular", "composite_attempt"):
+    sys.path.insert(0, str(REPO_ROOT / "core" / "neural_codec" / _d))
+
+
 import numpy as np
 import scipy.signal as sps
 import soundfile as sf
@@ -25,8 +26,11 @@ from voice_within_voice_demo import codec2_encode, codec2_decode
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--input", default=str(REPO_ROOT / "tests/data/raw/synth_readaloud_01.wav"))
-    ap.add_argument("--start_s", type=float, default=20.0)
+    default_input = REPO_ROOT / "tests/data/raw/synth_readaloud_01.wav"
+    if not default_input.exists():  # not distributed; use the clip shipped with the demo app
+        default_input = REPO_ROOT / "app/static/cover.wav"
+    ap.add_argument("--input", default=str(default_input))
+    ap.add_argument("--start_s", type=float, default=20.0 if default_input.name != "cover.wav" else 5.0)
     ap.add_argument("--length_s", type=float, default=10.0)
     ap.add_argument("--codec2_mode", type=int, default=1200)
     ap.add_argument("--ckpt", default=str(REPO_ROOT / "core/neural_codec/sequence/ckpt_seq_adv.pt"))

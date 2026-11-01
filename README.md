@@ -1,204 +1,206 @@
-# Voice-Codec Modem
+# voice-codec-modem
 
-Hide arbitrary digital data inside speech-shaped audio that survives the codecs used by Zoom, Discord, WhatsApp, and cellular voice. Six trained codecs span 76 bps (cellular voice) to 3196 bps (Zoom-class), with zero post-FEC errors verified on multi-seed validation. End-to-end voice-within-voice demos work: a second voice (Codec2) is hidden inside a normal-sounding call and recoverable bit-perfectly on the other end.
+**Send digital data through a voice call.** A neural data-over-voice modem that hides bytes in speech-like audio and gets them back intact after the lossy speech codecs used by Zoom, Teams, Discord, WhatsApp and cellular voice (Opus and AMR-NB).
 
-This is a research artifact, not a product. The codec is not novel methodology (it sits within the codec-in-loop training framework published by Juvela 2024, with watermark-class steganography ideas added). What is published here is a reproducible Pareto curve across rate, audibility, and channel, with working code and listenable demos for each point.
+[![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
+![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)
+![PyTorch](https://img.shields.io/badge/PyTorch-2.5-ee4c2c.svg)
 
-[Audio demos](#listen) · [Quickstart](#quickstart) · [Pareto frontier](#pareto-frontier) · [What works, what does not](#honest-limitations)
+**[Live demo](https://voice-channel-poc-production.up.railway.app)** · [Results](#results) · [Quickstart](#quickstart) · [How it works](#how-it-works) · [Limitations](#limitations) · [Prior art](#prior-art)
+
+Voice channels are built to throw away anything that isn't speech. Classic acoustic modems (FSK, chirps) barely survive them. This project trains an encoder/decoder pair with the real codec in the training loop, so the network learns which signals the codec keeps. Plain bits, a second voice (Codec2) or signed metadata can ride on top.
+
+It's a research artifact, not a product: a reproducible map of rate vs. how natural the audio sounds vs. which channel it survives, with working code, trained checkpoints and audio you can listen to.
 
 ---
 
-## What this delivers
+## Results
 
-| Channel | Where it ships in the wild | Best reliable rate |
-|---|---|---|
-| Opus 48k AUDIO | Discord, music-mode WebRTC | 4000 bps modem-tone, 2000 bps speech-dominant, 933 bps real-speech-cover |
-| Opus 24k VOIP | Zoom, Teams, modern WebRTC | 3196 bps modem-tone, 800 bps speech-textured, 270 bps real-speech-cover |
-| Opus 12k VOIP | WhatsApp, Signal voice | 3196 bps (modem-tone only) |
-| **AMR-NB 12.2k** | **2G/3G cellular voice, PSTN** | **76 bps real-speech-cover** with repetition coding |
+All rates are post-FEC payload rates through **real** codecs (ffmpeg-libopus, ffmpeg-libopencore-amrnb), never a simulated channel.
 
-All numbers are post-FEC, multi-seed validated through real ffmpeg-libopus or ffmpeg-amrnb (not surrogates). Zero residual errors observed on 76,000+ bits per checkpoint at the headline configurations.
+| Carrier sounds like | Channel | Reliable rate | Status |
+|---|---|---|---|
+| Modem tone | Opus 24k VOIP (Zoom, Teams, WebRTC) | **3196 bps** | ✅ re-verified: 0 errors in 45,600 bits (3 seeds) |
+| Speech-textured noise | Opus 24k VOIP | 2125 bps (0.05% residual BER), 1598 bps (0 errors) | reported |
+| Speech-like babble | Opus 24k VOIP | 799 bps | reported |
+| **Real human speech + audible hiss** | Opus 24k VOIP | **531 bps** | ✅ re-verified: 0 payload errors in 76,000 bits (5 runs); 1 of 80 RS blocks failed in padding, so this rate is near the edge |
+| Real human speech + audible hiss | Opus 48k AUDIO (Discord, music mode) | 933 bps | reported |
+| Real human speech + audible hiss | **AMR-NB 12.2k (2G/3G cellular, PSTN)** | **76 bps** | reported (needs ffmpeg with AMR-NB, see below) |
+| Voiced synthetic tone, no neural net | Opus 24k VOIP | 175 bps | ✅ re-verified: 0 errors in 152,000 bits (10 seeds) |
+| Pitch wobble on real speech | Any speech codec, including speaker → mic | ~5 bps | reported |
 
-The cellular result is the most unusual property: no published OSS waveform-domain method works through AMR-NB. Most audio watermarking targets MP3/AAC or Opus. AMR-NB cellular voice gets little research attention.
+"Re-verified" means the numbers were rerun from a clean checkout on 2026-11-01. "Reported" means numbers from the original training runs that weren't rerun.
 
-## Listen
+The cellular result is the unusual one. Most open-source audio watermarking targets MP3, AAC or Opus. We know of no other open-source method that works blind in the waveform domain through AMR-NB.
 
-Inside [core/neural_codec/](core/neural_codec/) and its subfolders are listenable WAVs for every variant. Cover versus modified versus through-codec for each codec class.
+### Listen
 
-The headline demo, voice-within-voice through Zoom-class Opus 24k VOIP at 2400 bps Codec2:
+Every variant ships with WAV files: cover → modified → after the codec.
 
-```bash
-.venv/bin/python core/neural_codec/voice_within_voice_demo.py --length_s 10 --codec2_mode 2400
-# outputs: core/neural_codec/demo_outputs/
-#   01_original_16k.wav                       cover voice (real speech)
-#   05_transmitted_carrier_audio_16k.wav      what eavesdroppers hear (synthetic, modem-toned)
-#   07_recovered_voice_within_voice_16k.wav   the second voice recovered (bit-identical to Codec2)
-```
+| What | Files |
+|---|---|
+| Voice-within-voice, modem-tone carrier, Opus 24k | [`core/neural_codec/demo_outputs/`](core/neural_codec/demo_outputs/): `05_transmitted_carrier_audio_16k.wav` is what goes over the call, `07_recovered_voice_within_voice_16k.wav` is the hidden voice recovered |
+| Real-speech cover, Opus 24k | [`core/neural_codec/stego/listen_samples/`](core/neural_codec/stego/listen_samples/) |
+| Real-speech cover, AMR-NB cellular | [`core/neural_codec/cellular/listen_samples/`](core/neural_codec/cellular/listen_samples/) |
+| Speech-textured carriers | [`adversarial/`](core/neural_codec/adversarial/), [`sequence/`](core/neural_codec/sequence/) |
 
-The new lower-rate demo with a real-speech-sounding cover at Codec2 700C, embedded via stego_opus + Opus 24k VOIP:
+### Try it over a real call
 
-```bash
-say "Meet me at the warehouse at midnight." -o /tmp/hidden.aiff   # macOS TTS
-ffmpeg -i /tmp/hidden.aiff -ar 8000 -ac 1 -f s16le /tmp/hidden.raw
-python3 app/voice_within_voice.py
-# outputs: /tmp/voice_within_voice/
-#   tx.wav                  cover voice with embedded data (audible hiss)
-#   rx.wav                  same after Opus 24k VOIP round-trip
-#   hidden_recovered.wav    the second voice (Codec2 700C, robotic but intelligible)
-```
+The [live demo](https://voice-channel-poc-production.up.railway.app) has two tabs:
+- **Send:** encodes text and plays it.
+- **Listen:** records from your microphone and decodes.
+
+Open Send on one machine and Listen on another, with a Zoom, Meet or phone call between them. Nobody has yet measured how well the signal survives a live call with default noise suppression, echo cancellation and packet loss (see [Limitations](#limitations)). If you try it, please [open an issue](https://github.com/rozetyp/voice-codec-modem/issues) with the app, the settings and whether the message decoded.
+
+---
 
 ## Quickstart
 
 ```bash
-git clone <this-repo>
+git clone https://github.com/rozetyp/voice-codec-modem.git
 cd voice-codec-modem
 
-# Python 3.10+ required (type-union syntax used throughout).
 python3.12 -m venv .venv
-.venv/bin/python -m pip install -r requirements.txt
+.venv/bin/pip install -r requirements.txt
 
-# System tools
-brew install ffmpeg codec2          # macOS
-# or: apt-get install ffmpeg codec2  (linux)
+brew install ffmpeg codec2            # macOS
+# sudo apt-get install ffmpeg codec2  # Debian/Ubuntu (its ffmpeg includes AMR-NB)
+```
 
-# First demo: 3.2 kbps voice-within-voice through Opus 24k VOIP
+**1. Measure the headline rate** (about 15 s on a laptop, CPU or Apple MPS):
+
+```bash
+.venv/bin/python core/neural_codec/neural_with_fec.py core/neural_codec/ckpt_n128_mixed.pt --seeds 3
+# FEC: RS(255,191) depth=8 -> eff_bitrate=3196 bps
+# TOTAL                                 0.0000% (0/45600 bits)
+```
+
+**2. Hide a voice inside a voice:** Codec2 at 2400 bps, sent through Opus 24k VOIP:
+
+```bash
 .venv/bin/python core/neural_codec/voice_within_voice_demo.py --length_s 10 --codec2_mode 2400
-
-# Multi-seed validation of any checkpoint
-.venv/bin/python core/neural_codec/eval_real_opus.py core/neural_codec/ckpt_n128_mixed.pt --seeds 5
-
-# AMR-NB cellular variant
-.venv/bin/python core/neural_codec/cellular/amrnb_eval_with_rep.py
+# raw bit BER: 0.925%  (FEC blocks: 16 ok, 0 failed)
+# ✅ payload bytes EXACTLY recovered — decoded audio bit-identical to Codec2 reference
 ```
 
-The newer prosody and stacked-channel demos in `app/` use `pyworld`, which has an extra setuptools dependency. They are run with system Python (where pyworld is already installed) or with a fresh venv that has setuptools<80.
+**3. Run the web demo locally:**
 
-## Pareto frontier
-
-Five non-dominated checkpoints, each at a different point on the rate vs realism vs channel curve.
-
-| Checkpoint | Reliable rate | Post-FEC BER | Carrier sounds like | Best for |
-|---|---|---|---|---|
-| `core/neural_codec/ckpt_n128_mixed.pt` | 3196 bps | 0.0000% on 76 kbits | Modem tone | Pure rate, machine-to-machine over a phone call |
-| `core/neural_codec/adversarial/ckpt_n128_adv.pt` | 2125 bps | 0.05% (1 bit per 2000) | Speech-textured noise | Balanced rate vs realism |
-| `core/neural_codec/adversarial/ckpt_n64_adv.pt` | 1598 bps | 0.0000% | Speech-textured noise | Lower-rate speech-textured |
-| `core/neural_codec/sequence/ckpt_seq_adv.pt` | 799 bps | 0.0000% | Speech-like babble with cross-symbol envelope | Realism-headline; closest to real speech in mel-L1 |
-| `core/neural_codec/stego/ckpt_stego_p3.pt` | 270 bps (Opus 24k VOIP) or 933 bps (Opus 48k AUDIO) | 0.0000% | Real human speech with audible hiss | Real-speech cover |
-| `core/neural_codec/cellular/ckpt_amrnb_real.pt` | 76 bps | 0.58% post-rep | Real human speech with audible hiss | Cellular voice (only known method) |
-
-The newer stacked channel adds a 5 bps prosody sub-channel via pyworld pitch modulation; bulletproof through any speech codec including the speaker-to-microphone acoustic loop.
-
-## Repository structure
-
+```bash
+.venv/bin/uvicorn app.server:app --port 8080   # open http://localhost:8080
 ```
-voice-codec-modem/
-├── core/
-│   ├── neural_codec/                  IID neural codecs, headline 3196 bps
-│   │   ├── adversarial/               IID + adversarial realism, 29-31% closer to real speech
-│   │   ├── sequence/                  SEQ codec with cross-symbol coherence
-│   │   ├── stego/                     Real-speech-cover stego, 270 bps via Opus 24k VOIP
-│   │   ├── cellular/                  AMR-NB cellular variant, 76 bps reliable
-│   │   ├── prosody/                   Pitch-modulation modem (5 bps reliable, any codec)
-│   │   └── composite_attempt/         Documented negative result (TRIZ band-split)
-│   ├── triz_pitch/                    Hand-coded modem (175 bps reliable, no neural net)
-│   └── slow_ghost.py, production_modem.py, ...   Earlier prototypes, retired (see Reality Check)
-├── app/
-│   ├── voice_within_voice.py          Codec2 700C through stacked stego_opus + prosody
-│   ├── test_stacked_channel.py        Stego + prosody together
-│   ├── test_prosody_modem.py          Pitch-modulation standalone
-│   ├── modal_probe_*.py               Multi-codec shootout, EnCodec/Mimi/DAC analysis
-│   ├── modal_train_encodec_opus.py    Failed EnCodec encoder fine-tune (kept for reference)
-│   └── pipelines.py, server.py        FastAPI POC for in-browser encode/decode
-├── tests/                             Validation scripts and audio fixtures
-├── tools/                             Real-codec test harness
-└── Dockerfile, railway.json, .railwayignore   Deployed POC config (separate from research)
-```
+
+| Script | What it measures |
+|---|---|
+| `core/neural_codec/eval_real_opus.py <ckpt> --seeds 5` | Raw BER of any IID checkpoint through libopus |
+| `core/neural_codec/stego/stego_listen.py --ckpt core/neural_codec/stego/ckpt_stego_p3.pt` | Real-speech cover: BER, SNR, listenable WAVs |
+| `core/neural_codec/cellular/amrnb_eval_with_rep.py` | AMR-NB cellular variant with repetition coding |
+| `core/neural_codec/adversarial/realism_eval.py` | How close each carrier sounds to real speech |
+| `core/triz_pitch/v5_final_validate.py` | Hand-coded modem, needs `opuslib` (see `requirements.txt`) |
+| `app/voice_within_voice.py` | Codec2 700C hidden in a real-speech cover at 531 bps |
+
+**Notes**
+- **AMR-NB:** Homebrew's ffmpeg is built without `libopencore-amrnb`, so the cellular scripts fail on macOS. Use Linux, or build the Docker image.
+- **Speech clips:** scripts that need real speech read `tests/data/raw/*.wav` when it exists. Otherwise they use the bundled 30 s clip in `app/static/cover.wav`.
+- **`pyworld`:** only the prosody modem and `experiments/test_stacked_channel.py` need it.
+
+---
 
 ## How it works
 
-The neural codec is an end-to-end learned encoder/decoder pair with the real codec in the training loop.
-
-```
-data bytes
-  -> Reed-Solomon (255,191) interleaved encode
-  -> bits
-  -> Encoder (1D conv stack, 3-32M params)
-  -> 30 ms audio frames at 16 kHz
-  -> ffmpeg -c:a libopus -b:a 24k -application voip   (the channel)
-  -> Decoder (mirror conv stack)
-  -> bit logits
-  -> RS decode
-  -> data bytes
+```mermaid
+flowchart LR
+    A[data bytes] --> B["Reed-Solomon (255,k)<br/>interleaved ×8"]
+    B --> C[bits]
+    C --> D["Encoder<br/>1D conv, 3–32M params"]
+    D --> E["30 ms frames<br/>16 kHz audio"]
+    E --> F{{"real codec<br/>ffmpeg libopus / AMR-NB"}}
+    F --> G["Decoder<br/>mirror conv stack"]
+    G --> H[bit logits] --> I[RS decode] --> J[data bytes]
 ```
 
-Training mixes a differentiable surrogate channel (lowpass plus shaped noise) with periodic real-Opus straight-through steps every 25 iterations. The straight-through trick passes gradients as identity through the non-differentiable codec while running real ffmpeg-libopus on the forward pass. This closes the surrogate-to-real gap that single-channel surrogate training cannot reach.
+**Codec in the training loop.** Most training steps go through a differentiable stand-in for the codec (lowpass plus shaped noise). Every 25 iterations, a straight-through step runs the real ffmpeg libopus encoder on the forward pass and passes the gradient through unchanged. That closes the gap between the stand-in and the real codec, which training on the stand-in alone never does ([Juvela 2024](https://arxiv.org/abs/2409.13382)). AMR-NB's ACELP coding is too far from any simple stand-in, so the cellular model runs real ffmpeg-amrnb on every step. That's 5–10× slower, but it's the only setup that converged.
 
-For AMR-NB, the surrogate fails entirely (ACELP coding is too far from the surrogate distribution) so training runs every step through real ffmpeg-amrnb. Five to ten times slower per step, but the only way to converge for cellular voice.
+**Steganographic variants** take `(cover_speech, bits)` and output a small additive perturbation, scaled by the cover's loudness so louder speech hides more. The cover is real speech, which the codec is designed to keep, so the bits ride underneath it.
 
-The stego variants take a different path: the encoder takes (cover_speech, bits) and produces a small additive perturbation that rides on real recorded human speech. The cover IS speech that the codec is psychoacoustically tuned to preserve. Bits ride underneath as small amplitude-masked perturbations.
+**Hand-coded modem** ([`core/triz_pitch/`](core/triz_pitch/)) uses no neural network. It synthesizes voiced audio in which pitch, gain and spectral tilt carry the data, because Opus faithfully preserves those three features. It stacks three channels and adds bit-interleaved Reed-Solomon over GF(256), and needs no GPU.
 
-The hand-coded TRIZ-inversion modem in `core/triz_pitch/` does not use neural networks. It synthesizes voiced audio whose Opus-preserved features (pitch, gain, spectral tilt) ARE the data. Three orthogonal channels stacked, then bit-interleaved Reed-Solomon over GF(256). 175 bps reliable, zero observed errors across 152 kbits, no GPU needed.
+### Checkpoints
 
-## Honest limitations
+| Checkpoint | Rate | Carrier | Use it for |
+|---|---|---|---|
+| `core/neural_codec/ckpt_n128_mixed.pt` | 3196 bps | Modem tone | Machine-to-machine over a call |
+| `core/neural_codec/adversarial/ckpt_n128_adv.pt` | 2125 bps | Speech-textured noise | Balance of rate and realism |
+| `core/neural_codec/adversarial/ckpt_n64_adv.pt` | 1598 bps | Speech-textured noise | Lower rate, zero residual errors |
+| `core/neural_codec/sequence/ckpt_seq_adv.pt` † | 799 bps | Speech-like babble | Closest to real speech (mel-L1) |
+| `core/neural_codec/stego/ckpt_stego_p3.pt` | 531 bps (24k VOIP), 933 bps (48k AUDIO) | Real speech + hiss | Hidden in a normal-sounding call |
+| `core/neural_codec/cellular/ckpt_amrnb_real.pt` | 76 bps | Real speech + hiss | 2G/3G cellular voice |
 
-This is a research artifact. Several things do not work, are not measured, or are below published state of the art.
+† Not in git (too large). The other checkpoints, 9–21 MB each, are committed.
 
-**Things that do not work as advertised in earlier README drafts:**
-- `slow_ghost.py` claimed 2.7 kbps. It does 10 bps and the decoder is an untrained `nn.Module`.
-- `production_modem.py` claimed 800 bps with FEC. It does not round-trip even without a codec; the energy-threshold decoder mismatches the encoder's levels. ~50% BER.
-- `band_energy_modulation.py` and friends claim 1-2 kbps but only test against an in-file `mock_opus_codec` which is just A-weighted Gaussian noise. Untested against real libopus.
+---
 
-These are kept in the repo with prominent failure notices in the [Reality Check](#reality-check) section. They are not part of the working set.
+## Repository layout
 
-**Things untested or below state of the art:**
-- AMR-WB, EVS, G.711, G.722. Major cellular and PSTN codecs not characterized.
-- Adversarial steganalysis robustness. Never trained against a real detector.
-- Live two-way duplex. All round-trips are file-based; no jitter, packet loss, or sync preamble.
-- Real cellular network conditions. AMR-NB tested via ffmpeg only.
-- Imperceptibility. Best stego variant is ~13 dB SNR (audible hiss). True watermark-class imperceptibility (>25 dB SNR) was not reached.
-- The 76 bps AMR-NB number is far below published codec-internal QIM-based AMR steganography (Tian et al. 2018 report 1-3 kbps). The legitimate distinction is that ours is blind waveform-domain (sender produces a normal WAV) while published methods are codec-internal (sender modifies the AMR encoder during quantization). Different problem class. Not better, not novel methodology.
+```
+core/neural_codec/      trained codecs, eval and demo scripts (neural_codec.py holds the shared model)
+  adversarial/          IID + adversarial realism loss
+  sequence/             cross-symbol (sequence) codec
+  stego/                real-speech cover steganography
+  cellular/             AMR-NB variant
+  prosody/              pitch-modulation modem (~5 bps, any codec)
+  composite_attempt/    documented negative result: band-split carrier
+core/triz_pitch/        hand-coded pitch/gain/tilt modem (no neural net)
+app/                    FastAPI web demo (server.py, pipelines.py, static/)
+experiments/            Modal GPU training jobs and probes (EnCodec, Mimi, DAC, two-talker, prosody)
+Dockerfile, railway.json  deploy config for the web demo
+```
 
-**Things this is not:**
-- Not a commercial product. AudioSeal owns the watermarking market at much better imperceptibility; we are at a different point on the curve (higher capacity, audible carrier).
-- Not a research breakthrough. Methods are published (Juvela 2024 codec-in-loop training, watermark-class stego patterns).
-- Not novel methodology. The contribution is a reproducible Pareto curve, working code, and an honest writeup of what the techniques deliver across three classes of voice codec.
+Scripts are run by path, not installed as a package. Each one puts `core/neural_codec/` and its subfolders on `sys.path`. `app/pipelines.py` keeps its own copy of the model classes, so the Docker image doesn't need the training code.
 
-## Reality check
+---
 
-Discrepancies caught while auditing earlier README drafts. Documented to prevent re-litigation.
+## Limitations
 
-- `slow_ghost.py` claimed 2.7 kbps and 1.15% BER. The code does 10 bps. No BER is measured anywhere. The decoder has random untrained weights. Retired.
-- `production_modem.py` claimed 800 bps "Production Ready" with <0.5% BER. The script's decoder threshold does not match its own encoder levels; it does not round-trip even without a codec. The "99.9% codec survival rate" string is hard-coded, not measured. Retired.
-- `LLM semantic compression multiplies effective capacity` claim conflated channel bitrate with information rate. Removed.
-- `utils/ACTION_PLAN_10KBPS.py` is 0 bytes. Other `utils/*.py` files are prose-as-Python rather than runnable code.
-- The previous "10 kbps reliable" target was aspirational and never validated through real Opus.
+- **Live calls are untested.** Every result is file-based: encode, pass through ffmpeg, decode. There's no jitter, packet loss or sync preamble yet, and no full-duplex use. Zoom's and Teams' default AI noise suppression is the biggest open risk, because it's designed to remove sound that isn't speech.
+- **The carrier is audible.** The best real-speech variant reaches about 13–15 dB SNR, which you hear as hiss. True watermark-grade imperceptibility (>25 dB) wasn't reached.
+- **Other codecs are uncharacterized:** AMR-WB, EVS, G.711 and G.722.
+- **No adversarial robustness.** The models were never trained against a steganalysis detector.
+- **Cellular was tested through ffmpeg only,** not over a real network.
+- **76 bps is far below codec-internal AMR steganography,** which reaches 1–3 kbps (Tian et al. 2018). Those methods modify the AMR encoder itself. This one is blind: the sender produces an ordinary WAV and the network's codec is untouched. They solve different problems; this is not "better".
+- **The methods aren't new.** Codec-in-the-loop training and watermark-style steganography are published. The contribution is the measured map across three classes of voice codec, plus reproducible code and audio.
+
+Earlier prototypes (an FSK/band-energy "2.7 kbps" modem and others) didn't reproduce their claimed rates and were removed. They remain in the [`v0.1.0`](https://github.com/rozetyp/voice-codec-modem/tree/v0.1.0) tag for the record.
+
+---
 
 ## Prior art
 
-The methods used here are published. This work is an application of those methods to a wider Pareto frontier with reproducible artifacts, not a novel technique.
+| Project | Rate | Notes |
+|---|---|---|
+| [Juvela 2024, codec-augmented watermarking](https://arxiv.org/abs/2409.13382) | — | The straight-through codec-in-loop training used here |
+| [AudioSeal](https://github.com/facebookresearch/audioseal) (Meta) | 16 bps | The leading open-source watermark; far more imperceptible, much lower capacity |
+| [SilentCipher](https://github.com/sony/silentcipher) (Sony) | ~30 bps | Near-imperceptible |
+| [WavMark](https://github.com/wavmark/wavmark) | 32 bps | |
+| [ggwave](https://github.com/ggerganov/ggwave) | 8–16 bps | Over-the-air data with audible chirps |
+| [Tian et al. 2018](https://link.springer.com/article/10.1007/s11042-017-4860-1) | 1–3 kbps | AMR codec-internal steganography (modifies the encoder) |
 
-- **Codec-in-loop neural watermarking**: [Juvela 2024, "Audio Codec Augmentation for Robust Collaborative Watermarking"](https://arxiv.org/abs/2409.13382). The straight-through training procedure used in this repo is from this paper.
-- **AMR codec-internal steganography**: [Tian et al. 2018, "An AMR adaptive steganography algorithm based on minimizing distortion"](https://link.springer.com/article/10.1007/s11042-017-4860-1). Reports 1-3 kbps via codec-internal QIM. Published state of the art for cellular-codec stego. Higher rate than this repo because it modifies the AMR encoder directly rather than going through it blindly.
-- **AudioSeal**: [Meta 2024](https://github.com/facebookresearch/audioseal), MIT licensed. The dominant OSS audio watermarking system. Higher imperceptibility than ours; lower capacity (16 bits/sec). Different point on the Pareto curve.
-- **SilentCipher**: [Sony 2024](https://github.com/sony/silentcipher). 30 bits/sec, near-imperceptible.
-- **WavMark**: [Github](https://github.com/wavmark/wavmark). 32 bits/sec.
-- **GGWave**: [Georgi Gerganov](https://github.com/ggerganov/ggwave). Acoustic data modem, 8-16 bps reliable through air, audible chirps.
+## Citation
 
-## Reproducibility
-
-Every headline number can be reproduced from the scripts in the repo:
-
-- 3.2 kbps neural codec: `core/neural_codec/voice_within_voice_demo.py`
-- Multi-seed validation of any checkpoint: `core/neural_codec/eval_real_opus.py <ckpt> --seeds 5`
-- AMR-NB cellular variant: `core/neural_codec/cellular/amrnb_eval_with_rep.py`
-- Adversarial realism: `core/neural_codec/adversarial/realism_eval.py`
-- Stego with real-speech cover: `core/neural_codec/stego/stego_listen.py`
-- Hand-coded TRIZ modem: `core/triz_pitch/v5_final_validate.py`
+```bibtex
+@software{voice_codec_modem_2026,
+  author = {rozetyp},
+  title  = {voice-codec-modem: neural data-over-voice through Opus and AMR-NB},
+  year   = {2026},
+  url    = {https://github.com/rozetyp/voice-codec-modem}
+}
+```
 
 ## License
 
-Apache License 2.0. See [LICENSE](LICENSE) for the full text. Apache 2.0 includes an explicit patent grant, which matters for audio watermarking work because the field has active patents (Verance/Cinavia, Audible Magic, NexGuard).
+[Apache 2.0](LICENSE). Its explicit patent grant matters here, because audio watermarking has active patents (Verance/Cinavia, Audible Magic, NexGuard).
 
-## Acknowledgments
+Training data:
+- LibriSpeech dev-clean (CC BY 4.0) for the diversity-trained checkpoints.
+- Early stego checkpoints were trained on two short clips, a TTS read-aloud and a podcast excerpt. Neither clip is distributed.
 
-LibriSpeech dev-clean was used for diversity-tested training in some checkpoints. Two-clip training data (one synthetic readaloud, one Lex Fridman snippet) was used for early stego variants. Real ffmpeg-libopus and ffmpeg-amrnb-encoder are the channel implementations used throughout.
+`app/static/cover.wav` is [ElevenLabs](https://elevenlabs.io) text-to-speech. Audio passes through real ffmpeg libopus and libopencore-amrnb throughout.

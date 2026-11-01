@@ -9,7 +9,10 @@ import argparse
 import sys
 import warnings
 warnings.filterwarnings("ignore", message=".*output with one or more elements was resized.*")
-sys.path.insert(0, str(REPO_ROOT / "core" / "neural_codec"))
+from pathlib import Path
+REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
+for _d in ("", "adversarial", "sequence", "stego", "cellular", "composite_attempt"):
+    sys.path.insert(0, str(REPO_ROOT / "core" / "neural_codec" / _d))
 
 import numpy as np
 import torch
@@ -17,9 +20,7 @@ import torch
 from neural_codec import real_opus_batch, DEVICE, SR, SYMBOL_MS
 from seq_codec import SeqEncoder, SeqDecoder, BLOCK_N, N_CHUNKS
 from neural_with_fec import InterleavedRS, bytes_to_bits, bits_to_bytes
-from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 
 
 def measure(ckpt_path: str, n_data_bytes: int, n_seeds: int = 5,

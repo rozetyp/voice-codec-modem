@@ -2,13 +2,14 @@
 import os
 os.environ.setdefault("DYLD_FALLBACK_LIBRARY_PATH", "/opt/homebrew/lib")
 import sys
-sys.path.insert(0, str(REPO_ROOT / "core" / "neural_codec"))
+from pathlib import Path
+REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
+for _d in ("", "adversarial", "sequence", "stego", "cellular", "composite_attempt"):
+    sys.path.insert(0, str(REPO_ROOT / "core" / "neural_codec" / _d))
 import warnings
 warnings.filterwarnings("ignore", message=".*output with one or more elements was resized.*")
 
-from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 import numpy as np
 import soundfile as sf
 import torch

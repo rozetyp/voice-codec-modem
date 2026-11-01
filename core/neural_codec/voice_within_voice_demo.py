@@ -31,7 +31,8 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 
-sys.path.insert(0, str(REPO_ROOT / "core" / "neural_codec"))
+for _d in ("", "adversarial", "sequence", "stego", "cellular", "composite_attempt"):
+    sys.path.insert(0, str(REPO_ROOT / "core" / "neural_codec" / _d))
 
 import numpy as np
 import soundfile as sf
@@ -117,8 +118,11 @@ def neural_channel_send(data_bytes: bytes, ckpt_path: str,
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--input", default=str(REPO_ROOT / "tests/data/raw/synth_readaloud_01.wav"))
-    ap.add_argument("--start_s", type=float, default=20.0)
+    default_input = REPO_ROOT / "tests/data/raw/synth_readaloud_01.wav"
+    if not default_input.exists():  # not distributed; use the clip shipped with the demo app
+        default_input = REPO_ROOT / "app/static/cover.wav"
+    ap.add_argument("--input", default=str(default_input))
+    ap.add_argument("--start_s", type=float, default=20.0 if default_input.name != "cover.wav" else 5.0)
     ap.add_argument("--length_s", type=float, default=10.0)
     ap.add_argument("--codec2_mode", type=int, default=2400, choices=[1200, 1300, 1400, 1600, 2400, 3200])
     ap.add_argument("--ckpt", default=str(REPO_ROOT / "core/neural_codec/ckpt_n128_mixed.pt"))

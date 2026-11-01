@@ -1,0 +1,21 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "voice-codec-modem: neural data-over-voice through Opus and AMR-NB"
+authors:
+  - alias: rozetyp
+    email: rozetyp@gmail.com
+version: 0.2.0
+date-released: 2026-11-01
+license: Apache-2.0
+repository-code: "https://github.com/rozetyp/voice-codec-modem"
+url: "https://voice-channel-poc-production.up.railway.app"
+keywords:
+  - data over voice
+  - audio steganography
+  - audio watermarking
+  - acoustic modem
+  - neural codec
+  - Opus
+  - AMR-NB
+  - VoIP
+  - Codec2

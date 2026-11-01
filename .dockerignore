@@ -17,17 +17,10 @@ core/neural_codec/composite_attempt/demo_outputs/
 core/neural_codec/cellular/listen_samples/
 core/neural_codec/stego/listen_samples/
 
-# Old hand-coded modem
+# Hand-coded modem (research only)
 core/triz_pitch/
-core/band_energy_*.py
-core/hybrid_codec_approach.py
-core/opus_reverse_engineering.py
-core/production_modem.py
-core/slow_ghost.py
 
 # Tools / utils not needed at runtime
-tools/
-utils/
 tests/
 
 # Python / OS
@@ -42,3 +35,7 @@ venv/
 # Misc docs and dev artifacts
 *.md
 !README.md
+
+# Research scripts and private notes, never deployed
+experiments/
+_internal_docs_archive/

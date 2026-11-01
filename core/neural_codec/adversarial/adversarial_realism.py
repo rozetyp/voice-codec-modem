@@ -18,9 +18,12 @@ import warnings
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
+# tests/data/raw/ is not distributed; fall back to the 30 s clip shipped with the demo app.
+BUNDLED_SPEECH = REPO_ROOT / "app" / "static" / "cover.wav"
 
 warnings.filterwarnings("ignore", message=".*output with one or more elements was resized.*")
-sys.path.insert(0, str(REPO_ROOT / "core" / "neural_codec"))
+for _d in ("", "adversarial", "sequence", "stego", "cellular", "composite_attempt"):
+    sys.path.insert(0, str(REPO_ROOT / "core" / "neural_codec" / _d))
 
 import numpy as np
 import soundfile as sf
@@ -40,6 +43,7 @@ class RealSpeechSampler:
     """Slice files in tests/data/raw/ into 30ms chunks; sample uniformly per call."""
     def __init__(self, paths, min_rms=0.01, exclude_silence=True):
         clips = []
+        paths = [p for p in paths if Path(p).exists()] or [BUNDLED_SPEECH]
         for p in paths:
             a, sr = sf.read(str(p))
             if a.ndim > 1: a = a.mean(axis=1)

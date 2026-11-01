@@ -3,7 +3,7 @@ Inference-only wrappers around the three trained codecs.
 
 Three pipelines:
   - opus_iid    : ckpt_n128_mixed.pt    (3196 bps reliable through Opus 24k VOIP)
-  - stego_opus  : ckpt_stego_p3.pt      (270 bps reliable, real-speech cover, 24k VOIP)
+  - stego_opus  : ckpt_stego_p3.pt      (531 bps reliable, real-speech cover, 24k VOIP)
   - stego_amrnb : ckpt_amrnb_real.pt    (~76 bps reliable, AMR-NB cellular voice)
 
 Each exposes encode_text(text)->wav_bytes and decode_audio(wav_bytes)->dict.
@@ -376,7 +376,7 @@ class OpusIIDPipeline:
 
 
 class StegoOpusPipeline:
-    """Real-speech cover + neural stego, ~270 bps reliable through Opus 24k VOIP."""
+    """Real-speech cover + neural stego, ~531 bps reliable through Opus 24k VOIP."""
     name = "stego_opus"
     description = "Real-speech cover with embedded data — sounds like a person talking with audible hiss"
 

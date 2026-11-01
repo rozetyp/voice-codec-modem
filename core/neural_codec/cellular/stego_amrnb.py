@@ -17,11 +17,12 @@ import sys
 import tempfile
 import warnings
 warnings.filterwarnings("ignore", message=".*output with one or more elements was resized.*")
-sys.path.insert(0, str(REPO_ROOT / "core" / "neural_codec"))
-
 from pathlib import Path
-
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
+for _d in ("", "adversarial", "sequence", "stego", "cellular", "composite_attempt"):
+    sys.path.insert(0, str(REPO_ROOT / "core" / "neural_codec" / _d))
+
+
 import numpy as np
 import soundfile as sf
 import torch

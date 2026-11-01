@@ -2,7 +2,10 @@
 import os
 os.environ.setdefault("DYLD_FALLBACK_LIBRARY_PATH", "/opt/homebrew/lib")
 import sys
-sys.path.insert(0, str(REPO_ROOT / "core" / "neural_codec"))
+from pathlib import Path
+REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
+for _d in ("", "adversarial", "sequence", "stego", "cellular", "composite_attempt"):
+    sys.path.insert(0, str(REPO_ROOT / "core" / "neural_codec" / _d))
 import warnings
 warnings.filterwarnings("ignore", message=".*output with one or more elements was resized.*")
 import numpy as np
@@ -10,9 +13,7 @@ import torch
 
 from neural_codec import Encoder, Decoder, real_opus_batch, DEVICE, SR, SYMBOL_MS
 from neural_with_fec import InterleavedRS, bytes_to_bits, bits_to_bytes
-from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 
 
 def test(ckpt_path, n_data, n_total, n_data_bytes=1900, n_seeds=5):
