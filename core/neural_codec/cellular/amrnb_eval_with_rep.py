@@ -106,8 +106,14 @@ def measure(ckpt_path: str, n_data_bits_list: list[int], n_rep_list: list[int],
 
 
 if __name__ == "__main__":
+    import argparse
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--seeds", type=int, default=20)
+    ap.add_argument("--blocks", type=int, default=1000, help="30 ms blocks per seed")
+    ap.add_argument("--reps", default="1,3,5,7,9,11,13,16", help="repetition factors to try")
+    args = ap.parse_args()
     measure(str(REPO_ROOT / "core/neural_codec/cellular/ckpt_amrnb_real.pt"),
-            n_data_bits_list=[8, 4, 2, 1],
-            n_rep_list=[1, 2, 3, 5, 7, 11, 16],
-            n_seeds=3,
-            samples_per_seed_blocks=200)
+            n_data_bits_list=[],
+            n_rep_list=[int(r) for r in args.reps.split(",")],
+            n_seeds=args.seeds,
+            samples_per_seed_blocks=args.blocks)

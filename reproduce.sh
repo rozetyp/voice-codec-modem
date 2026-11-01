@@ -51,10 +51,17 @@ run "531 bps | real speech + hiss | Opus 24k VOIP" 0.5 \
 run "799 bps | real speech + hiss | Opus 48k AUDIO" 0 \
   "$PY" $NC/stego/stego_with_fec.py --application audio --kbps 48 --rs_data 191
 
-if ffmpeg -hide_banner -encoders 2>/dev/null | grep -q libopencore_amrnb; then
+# AMR-NB needs an ffmpeg with the libopencore_amrnb encoder. Set AMR_FFMPEG_DIR to the directory of such
+# a build to use it for the cellular rows only, keeping the default ffmpeg (and its libopus) for the rest.
+AMR_PATH="${AMR_FFMPEG_DIR:+$AMR_FFMPEG_DIR:}$PATH"
+if PATH="$AMR_PATH" ffmpeg -hide_banner -encoders 2>/dev/null | grep -q libopencore_amrnb; then
   run "AMR-NB 12.2k | real speech + hiss | repetition coding (report only)" '' \
-    "$PY" $NC/cellular/amrnb_eval_with_rep.py
-else skip "AMR-NB 12.2k | real speech + hiss" "this ffmpeg has no libopencore_amrnb encoder (see README notes)"; fi
+    env PATH="$AMR_PATH" "$PY" $NC/cellular/amrnb_eval_with_rep.py
+  if [ -n "${AMR_FFMPEG_DIR:-}" ]; then
+    run "3196 bps | modem tone | Opus 24k VOIP through the AMR_FFMPEG_DIR build's libopus (report only)" '' \
+      env PATH="$AMR_PATH" "$PY" $NC/neural_with_fec.py $NC/ckpt_n128_mixed.pt --seeds 5
+  fi
+else skip "AMR-NB 12.2k | real speech + hiss" "no ffmpeg with the libopencore_amrnb encoder (see README notes)"; fi
 
 if command -v c2enc >/dev/null; then
   run "Voice within voice | Codec2 2400 inside the 3196 bps carrier" 'EXACTLY recovered' \

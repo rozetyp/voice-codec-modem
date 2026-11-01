@@ -21,15 +21,18 @@ jobs:
         with:
           python-version: "3.12"
       - name: System codecs
-        # Ubuntu's ffmpeg has no AMR-NB encoder; the johnvansickle.com static build has libopus and libopencore-amrnb.
+        # Opus rows use Ubuntu's ffmpeg (libopus 1.4). Ubuntu's ffmpeg has no AMR-NB encoder, so the
+        # cellular rows use the johnvansickle.com static build (libopencore-amrnb, libopus 1.3.1).
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends codec2 libopus0
-          curl -fsSL https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz | tar -xJ -C /tmp
-          sudo cp /tmp/ffmpeg-*-amd64-static/ffmpeg /usr/local/bin/
-          ffmpeg -hide_banner -version | head -1
+          sudo apt-get install -y --no-install-recommends ffmpeg codec2 libopus0
           ffmpeg -hide_banner -encoders | grep -q libopus
-          ffmpeg -hide_banner -encoders | grep -q libopencore_amrnb
+          mkdir -p "$RUNNER_TEMP/ffmpeg-amr"
+          curl -fsSL https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz \
+            | tar -xJ -C "$RUNNER_TEMP/ffmpeg-amr" --strip-components=1
+          "$RUNNER_TEMP/ffmpeg-amr/ffmpeg" -hide_banner -version | head -1
+          "$RUNNER_TEMP/ffmpeg-amr/ffmpeg" -hide_banner -encoders | grep -q libopencore_amrnb
+          echo "AMR_FFMPEG_DIR=$RUNNER_TEMP/ffmpeg-amr" >> "$GITHUB_ENV"
       - name: Python deps (CPU torch)
         run: |
           pip install --extra-index-url https://download.pytorch.org/whl/cpu -r requirements.txt
