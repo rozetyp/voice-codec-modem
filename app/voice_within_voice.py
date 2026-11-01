@@ -20,7 +20,7 @@ Pipeline:
                  -- bit unpack, RS decode, strip prefix --  hidden.c2 (recovered)
                  -- c2dec 700C --  hidden_recovered.wav
 
-End-to-end this is ~531 bps reliable. Codec2 700C runs at 700 bps but our test
+End-to-end this is ~531 bps (~0.07% residual BER). Codec2 700C runs at 700 bps but our test
 clip is short (3.9 s of voice in a 30 s cover) so the time-averaged demand on
 the channel is well below capacity.
 """

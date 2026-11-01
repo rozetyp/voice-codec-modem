@@ -1,6 +1,6 @@
 # voice-codec-modem
 
-**Send digital data through a voice call.** A neural data-over-voice modem that hides bytes in speech-like audio and gets them back intact after the lossy speech codecs used by Zoom, Teams, Discord, WhatsApp and cellular voice (Opus and AMR-NB).
+**Send digital data through a voice call.** A neural data-over-voice modem that hides bytes in speech-like audio and gets them back after the lossy speech codecs used by Zoom, Teams, Discord, WhatsApp and cellular voice (Opus and AMR-NB).
 
 [![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 ![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)
@@ -12,30 +12,37 @@ Voice channels are built to throw away anything that isn't speech. Classic acous
 
 It's a research artifact, not a product: a reproducible map of rate vs. how natural the audio sounds vs. which channel it survives, with working code, trained checkpoints and audio you can listen to.
 
-![Spectrograms: ordinary speech; the same speech carrying 531 bps after Opus 24k; the added data signal alone; the 3196 bps modem-tone carrier](docs/spectrograms.png)
+![Spectrograms: ordinary speech; the same speech carrying hidden data after Opus 24k; the added data signal alone; the 3196 bps modem-tone carrier](docs/spectrograms.png)
 
-<sub>Left to right, top to bottom: the cover speech; the same speech carrying 531 bps after Opus; the added data signal on its own; the 3196 bps modem-tone carrier. Rendered from the WAVs in <a href="core/neural_codec/stego/listen_samples/"><code>stego/listen_samples/</code></a> and <a href="core/neural_codec/demo_outputs/"><code>demo_outputs/</code></a>.</sub>
+<sub>Left to right, top to bottom: the cover speech; the same speech carrying hidden data after Opus; the added data signal on its own; the 3196 bps modem-tone carrier. Rendered from the WAVs in <a href="core/neural_codec/stego/listen_samples/"><code>stego/listen_samples/</code></a> and <a href="core/neural_codec/demo_outputs/"><code>demo_outputs/</code></a>.</sub>
 
 ---
 
 ## Results
 
-All rates are post-FEC payload rates through **real** codecs (ffmpeg-libopus, ffmpeg-libopencore-amrnb), never a simulated channel.
+[![reproduce](https://github.com/rozetyp/voice-codec-modem/actions/workflows/reproduce.yml/badge.svg)](https://github.com/rozetyp/voice-codec-modem/actions/workflows/reproduce.yml)
 
-| Carrier sounds like | Channel | Reliable rate | Status |
+Every number below is a payload rate after error correction, measured through the **real** codec (ffmpeg libopus or libopencore-amrnb), never a simulated channel. "Errors" counts wrong payload bits after Reed-Solomon decoding: 20 runs × 1,900 random bytes = 304,000 bits per row, measured on 2026-11-01 (Opus rows on Apple silicon with libopus 1.6; the AMR-NB row in CI, 20 runs × 30 s). [`reproduce.sh`](reproduce.sh) re-runs every row, and CI re-runs it on Linux on every push. The badge above is that run.
+
+| Carrier sounds like | Channel | Rate | Errors after FEC |
 |---|---|---|---|
-| Modem tone | Opus 24k VOIP (Zoom, Teams, WebRTC) | **3196 bps** | ✅ re-verified: 0 errors in 45,600 bits (3 seeds) |
-| Speech-textured noise | Opus 24k VOIP | 2125 bps (0.05% residual BER), 1598 bps (0 errors) | reported |
-| Speech-like babble | Opus 24k VOIP | 799 bps | reported |
-| **Real human speech + audible hiss** | Opus 24k VOIP | **531 bps** | ✅ re-verified: 0 payload errors in 76,000 bits (5 runs); 1 of 80 RS blocks failed in padding, so this rate is near the edge |
-| Real human speech + audible hiss | Opus 48k AUDIO (Discord, music mode) | 933 bps | reported |
-| Real human speech + audible hiss | **AMR-NB 12.2k (2G/3G cellular, PSTN)** | **76 bps** | reported (needs ffmpeg with AMR-NB, see below) |
-| Voiced synthetic tone, no neural net | Opus 24k VOIP | 175 bps | ✅ re-verified: 0 errors in 152,000 bits (10 seeds) |
-| Pitch wobble on real speech | Any speech codec, including speaker → mic | ~5 bps | reported |
+| Modem tone | Opus 24k VOIP (Zoom, Teams, WebRTC) | **3196 bps** | **0** / 304,000 |
+| Speech-textured noise | Opus 24k VOIP | 2125 bps | 74 / 304,000 (0.024%) |
+| Speech-textured noise | Opus 24k VOIP | 1330 bps | **0** / 304,000 |
+| Speech-like babble | Opus 24k VOIP | 799 bps | 26 / 304,000 (0.009%) |
+| **Real human speech + audible hiss** | Opus 24k VOIP | 531 bps | 208 / 304,000 (0.07%) |
+| **Real human speech + audible hiss** | Opus 24k VOIP | **397 bps** | **0** / 304,000 |
+| Real human speech + audible hiss | Opus 48k AUDIO (Discord, music mode) | **799 bps** | **0** / 304,000 |
+| Real human speech + audible hiss | **AMR-NB 12.2k (2G/3G cellular, PSTN)** | 76 bps | 183 / 45,700 (0.40%) with repetition coding; no tested rate was error-free |
+| Voiced synthetic tone, no neural net | Opus 24k VOIP | **175 bps** | **0** / 152,000 (10 runs) |
+| Codec2 voice hidden in the modem tone | Opus 24k VOIP | 2400 bps voice | bit-exact (10 s clip) |
+| Pitch wobble on real speech | Opus, any bitrate | ~4 bps raw | 6.25% raw, no FEC yet |
 
-"Re-verified" means the numbers were rerun from a clean checkout on 2026-11-01. "Reported" means numbers from the original training runs that weren't rerun.
+Two rates per carrier are the trade-off: the higher one leaves rare residual errors (an RS block occasionally gets more symbol errors than it can fix), and the lower one uses stronger RS and had none. For exact delivery at the higher rate, add a checksum and retransmit.
 
-The cellular result is the unusual one. Most open-source audio watermarking targets MP3, AAC or Opus. We know of no other open-source method that works blind in the waveform domain through AMR-NB.
+**Corrections in v0.2.1.** Re-measuring at 20 runs per row lowered most of the earlier claims. 933 bps on Opus 48k became 799 bps: at 933 bps, 64 of 320 blocks failed. "531 bps reliable" became 531 bps with 0.07% residual errors, plus 397 bps clean. 1598 bps "0 errors" became 0.018% residual, plus 1330 bps clean. "76 bps reliable" over AMR-NB had never been measured as stated: the old eval wasted 2 of every 16 bits, so it really tested 67 bps. Measured properly in CI, 76 bps leaves 0.40% errors, and repetition coding bottoms out near 0.1% at every lower rate (best: 17 / 24,600 at 41 bps). Reaching error-free cellular delivery needs real error correction on top; that's open work. The pitch-wobble row was "~5 bps, any codec including speaker → mic", but speaker → mic was never tested.
+
+The cellular result is the unusual one. Most open-source audio watermarking targets MP3, AAC or Opus. We know of no other open-source method that works blind in the waveform domain through AMR-NB, though here it isn't error-free yet.
 
 ### Listen
 
@@ -70,7 +77,7 @@ python3.12 -m venv .venv
 .venv/bin/pip install -r requirements.txt
 
 brew install ffmpeg codec2            # macOS
-# sudo apt-get install ffmpeg codec2  # Debian/Ubuntu (its ffmpeg includes AMR-NB)
+# sudo apt-get install ffmpeg codec2  # Debian/Ubuntu
 ```
 
 **1. Measure the headline rate** (about 15 s on a laptop, CPU or Apple MPS):
@@ -89,7 +96,16 @@ brew install ffmpeg codec2            # macOS
 # ✅ payload bytes EXACTLY recovered — decoded audio bit-identical to Codec2 reference
 ```
 
-**3. Run the web demo locally:**
+**3. Re-run every result in the table** (a few minutes; rows whose optional dependency is missing are skipped):
+
+```bash
+./reproduce.sh
+# ==== Summary
+# PASS  3196 bps | modem tone | Opus 24k VOIP  [0/76000, limit 0%]
+# ...
+```
+
+**4. Run the web demo locally:**
 
 ```bash
 .venv/bin/uvicorn app.server:app --port 8080   # open http://localhost:8080
@@ -98,6 +114,7 @@ brew install ffmpeg codec2            # macOS
 | Script | What it measures |
 |---|---|
 | `core/neural_codec/eval_real_opus.py <ckpt> --seeds 5` | Raw BER of any IID checkpoint through libopus |
+| `core/neural_codec/stego/stego_with_fec.py --rs_data 95` | Real-speech cover, end to end with RS: 397 bps (`--application audio --kbps 48 --rs_data 191` for 799 bps at 48k) |
 | `core/neural_codec/stego/stego_listen.py --ckpt core/neural_codec/stego/ckpt_stego_p3.pt` | Real-speech cover: BER, SNR, listenable WAVs |
 | `core/neural_codec/cellular/amrnb_eval_with_rep.py` | AMR-NB cellular variant with repetition coding |
 | `core/neural_codec/adversarial/realism_eval.py` | How close each carrier sounds to real speech |
@@ -105,7 +122,7 @@ brew install ffmpeg codec2            # macOS
 | `app/voice_within_voice.py` | Codec2 700C hidden in a real-speech cover at 531 bps |
 
 **Notes**
-- **AMR-NB:** Homebrew's ffmpeg is built without `libopencore-amrnb`, so the cellular scripts fail on macOS. Use Linux, or build the Docker image.
+- **AMR-NB:** the cellular scripts need an ffmpeg with the `libopencore_amrnb` encoder. Homebrew's and Ubuntu's ffmpeg don't have it; the static Linux builds from [johnvansickle.com](https://johnvansickle.com/ffmpeg/) do, and CI uses one. Check with `ffmpeg -encoders | grep amrnb`.
 - **Speech clips:** scripts that need real speech read `tests/data/raw/*.wav` when it exists. Otherwise they use the bundled 30 s clip in `app/static/cover.wav`.
 - **`pyworld`:** only the prosody modem and `experiments/test_stacked_channel.py` need it.
 
@@ -136,10 +153,10 @@ flowchart LR
 |---|---|---|---|
 | `core/neural_codec/ckpt_n128_mixed.pt` | 3196 bps | Modem tone | Machine-to-machine over a call |
 | `core/neural_codec/adversarial/ckpt_n128_adv.pt` | 2125 bps | Speech-textured noise | Balance of rate and realism |
-| `core/neural_codec/adversarial/ckpt_n64_adv.pt` | 1598 bps | Speech-textured noise | Lower rate, zero residual errors |
+| `core/neural_codec/adversarial/ckpt_n64_adv.pt` | 1330 bps (1598 with residual errors) | Speech-textured noise | Lower rate, zero residual errors |
 | `core/neural_codec/sequence/ckpt_seq_adv.pt` † | 799 bps | Speech-like babble | Closest to real speech (mel-L1) |
-| `core/neural_codec/stego/ckpt_stego_p3.pt` | 531 bps (24k VOIP), 933 bps (48k AUDIO) | Real speech + hiss | Hidden in a normal-sounding call |
-| `core/neural_codec/cellular/ckpt_amrnb_real.pt` | 76 bps | Real speech + hiss | 2G/3G cellular voice |
+| `core/neural_codec/stego/ckpt_stego_p3.pt` | 397 bps clean / 531 bps (24k VOIP), 799 bps (48k AUDIO) | Real speech + hiss | Hidden in a normal-sounding call |
+| `core/neural_codec/cellular/ckpt_amrnb_real.pt` | 76 bps (0.4% residual errors) | Real speech + hiss | 2G/3G cellular voice |
 
 † Not in git (81 MB). Download it from the [v0.2.0 release](https://github.com/rozetyp/voice-codec-modem/releases/tag/v0.2.0) into `core/neural_codec/sequence/`:
 
@@ -149,7 +166,7 @@ curl -L -o core/neural_codec/sequence/ckpt_seq_adv.pt \
 # sha256 ea718d17e69403f42dfcea5e84843c3f1db4319ed5dff1f838babd6371891b04
 ```
 
-The other checkpoints, 9–21 MB each, are committed.
+The other checkpoints, 9–21 MB each, are committed. Every script loads them with `torch.load(..., weights_only=True)`, which refuses to run code embedded in a checkpoint file.
 
 ---
 
@@ -180,6 +197,8 @@ Scripts are run by path, not installed as a package. Each one puts `core/neural_
 - **Other codecs are uncharacterized:** AMR-WB, EVS, G.711 and G.722.
 - **No adversarial robustness.** The models were never trained against a steganalysis detector.
 - **Cellular was tested through ffmpeg only,** not over a real network.
+- **Results depend on the libopus version.** 3196 bps is error-free with libopus 1.4 (Ubuntu) and 1.6 (Homebrew), but leaves 0.17% residual errors with libopus 1.3.1 (2019, still common). Real apps ship their own Opus builds; CI reports the 1.3.1 number on every run.
+- **Cellular isn't error-free yet.** AMR-NB at 76 bps leaves 0.4% residual errors, and repetition coding doesn't get below about 0.1%.
 - **76 bps is far below codec-internal AMR steganography,** which reaches 1–3 kbps (Tian et al. 2018). Those methods modify the AMR encoder itself. This one is blind: the sender produces an ordinary WAV and the network's codec is untouched. They solve different problems; this is not "better".
 - **The methods aren't new.** Codec-in-the-loop training and watermark-style steganography are published. The contribution is the measured map across three classes of voice codec, plus reproducible code and audio.
 

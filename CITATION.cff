@@ -4,7 +4,7 @@ title: "voice-codec-modem: neural data-over-voice through Opus and AMR-NB"
 authors:
   - alias: rozetyp
     email: rozetyp@gmail.com
-version: 0.2.0
+version: 0.2.1
 date-released: 2026-11-01
 license: Apache-2.0
 repository-code: "https://github.com/rozetyp/voice-codec-modem"
