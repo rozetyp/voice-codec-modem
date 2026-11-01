@@ -30,12 +30,12 @@ def encode_with_repetition(data_bits: np.ndarray, n_rep: int) -> np.ndarray:
 def decode_with_repetition(noisy_bits: np.ndarray, n_data: int, n_rep: int) -> np.ndarray:
     """Majority vote over groups of n_rep bits."""
     grouped = noisy_bits[:n_data * n_rep].reshape(n_data, n_rep)
-    return (grouped.sum(axis=1) >= (n_rep + 1) // 2 + 1 - 1).astype(int) if False else (grouped.mean(axis=1) >= 0.5).astype(int)
+    return (grouped.mean(axis=1) >= 0.5).astype(int)
 
 
 def measure(ckpt_path: str, n_data_bits_list: list[int], n_rep_list: list[int],
             n_seeds: int = 3, samples_per_seed_blocks: int = 100):
-    ckpt = torch.load(ckpt_path, map_location=DEVICE)
+    ckpt = torch.load(ckpt_path, map_location=DEVICE, weights_only=True)
     n_bits_per_sym = ckpt["n_bits"]
     pert = ckpt.get("perturbation_scale", 0.5)
     enc = StegEncoder(n_bits_per_sym).to(DEVICE)
@@ -80,35 +80,28 @@ def measure(ckpt_path: str, n_data_bits_list: list[int], n_rep_list: list[int],
         all_decoded = []
         for seed in range(n_seeds):
             torch.manual_seed(seed * 100 + n_rep)
-            # Generate data bits, expand with repetition, embed, recover, decode
-            n_total_bits_per_block = n_bits_per_sym
-            n_data_bits_per_block = n_total_bits_per_block // n_rep
-            if n_data_bits_per_block < 1: continue
-            data_bits = np.random.randint(0, 2, (samples_per_seed_blocks, n_data_bits_per_block))
-            tx_bits = np.zeros((samples_per_seed_blocks, n_total_bits_per_block), dtype=int)
-            for i, d in enumerate(data_bits):
-                rep = encode_with_repetition(d, n_rep)
-                tx_bits[i, :len(rep)] = rep
-                # Remaining slots get random fill (don't carry payload, decoder ignores)
-                if len(rep) < n_total_bits_per_block:
-                    tx_bits[i, len(rep):] = np.random.randint(0, 2, n_total_bits_per_block - len(rep))
-            tx = torch.from_numpy(tx_bits.astype(np.float32)).to(DEVICE)
+            # Pack the repeated stream continuously across blocks, as app/pipelines.py does,
+            # so a data bit's copies may straddle two blocks and no slot is wasted on filler.
+            n_data = samples_per_seed_blocks * n_bits_per_sym // n_rep
+            data_bits = np.random.randint(0, 2, n_data)
+            rep = encode_with_repetition(data_bits, n_rep)
+            rep = np.concatenate([rep, np.random.randint(0, 2, samples_per_seed_blocks * n_bits_per_sym - len(rep))])
+            tx = torch.from_numpy(rep.reshape(samples_per_seed_blocks, n_bits_per_sym).astype(np.float32)).to(DEVICE)
             cover = sampler.sample(samples_per_seed_blocks)
             with torch.no_grad():
                 modified, _ = enc(cover, tx, perturbation_scale=pert)
                 rx = amrnb_round_trip_batch(modified)
                 logits = dec(rx)
                 preds = (torch.sigmoid(logits) > 0.5).float().cpu().numpy().astype(int)
-            decoded = np.array([decode_with_repetition(p, n_data_bits_per_block, n_rep)
-                                for p in preds])
-            all_data_bits.append(data_bits.flatten())
-            all_decoded.append(decoded.flatten())
+            all_data_bits.append(data_bits)
+            all_decoded.append(decode_with_repetition(preds.reshape(-1), n_data, n_rep))
         data_concat = np.concatenate(all_data_bits)
         decoded_concat = np.concatenate(all_decoded)
         post_ber = float(np.mean(data_concat != decoded_concat))
         n_errs = int(np.sum(data_concat != decoded_concat))
         n_total = len(data_concat)
-        eff_rate = raw_bps / n_rep
+        # Payload bits actually delivered per second of audio.
+        eff_rate = n_total / (n_seeds * samples_per_seed_blocks * SYMBOL_MS / 1000)
         print(f"  {n_rep:>4}    {eff_rate:>6.0f} bps   {post_ber*100:>7.4f}%   {n_errs} / {n_total}")
 
 

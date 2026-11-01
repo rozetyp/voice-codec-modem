@@ -129,7 +129,7 @@ def train(
     enc = Encoder(n_bits=n_bits).to(DEVICE)
     dec = Decoder(n_bits=n_bits).to(DEVICE)
     if init_ckpt and Path(init_ckpt).exists():
-        st = torch.load(init_ckpt, map_location=DEVICE)
+        st = torch.load(init_ckpt, map_location=DEVICE, weights_only=True)
         enc.load_state_dict(st["encoder"]); dec.load_state_dict(st["decoder"])
         print(f"# loaded encoder+decoder from {init_ckpt}")
     disc = Discriminator().to(DEVICE)

@@ -67,14 +67,14 @@ def main():
     out_dir = Path(args.out_dir); out_dir.mkdir(exist_ok=True)
 
     # Load SEQ adv (speech-band)
-    seq_ckpt = torch.load(args.seq_ckpt, map_location=DEVICE)
+    seq_ckpt = torch.load(args.seq_ckpt, map_location=DEVICE, weights_only=True)
     n_bits_seq = seq_ckpt["n_bits_per_chunk"]; n_bits_seq_total = n_bits_seq * N_CHUNKS
     seq_enc = SeqEncoder(n_bits_seq).to(DEVICE); seq_dec = SeqDecoder(n_bits_seq).to(DEVICE)
     seq_enc.load_state_dict(seq_ckpt["encoder"]); seq_dec.load_state_dict(seq_ckpt["decoder"])
     seq_enc.eval(); seq_dec.eval()
 
     # Load IID baseline n=128 (will be band-limited to 3.5-7 kHz)
-    iid_ckpt = torch.load(args.iid_ckpt, map_location=DEVICE)
+    iid_ckpt = torch.load(args.iid_ckpt, map_location=DEVICE, weights_only=True)
     n_bits_iid = iid_ckpt["n_bits"]
     iid_enc = IIDEncoder(n_bits=n_bits_iid).to(DEVICE); iid_dec = IIDDecoder(n_bits=n_bits_iid).to(DEVICE)
     iid_enc.load_state_dict(iid_ckpt["encoder"]); iid_dec.load_state_dict(iid_ckpt["decoder"])

@@ -105,7 +105,7 @@ def codec_round_trip_batch(audio_t: torch.Tensor, codec: str) -> torch.Tensor:
 
 
 def test_iid(ckpt_path, codec, n_batches=4, batch_size=64):
-    ckpt = torch.load(ckpt_path, map_location=DEVICE)
+    ckpt = torch.load(ckpt_path, map_location=DEVICE, weights_only=True)
     n_bits = ckpt["n_bits"]
     enc = IIDEncoder(n_bits=n_bits).to(DEVICE); dec = IIDDecoder(n_bits=n_bits).to(DEVICE)
     enc.load_state_dict(ckpt["encoder"]); dec.load_state_dict(ckpt["decoder"])
@@ -124,7 +124,7 @@ def test_iid(ckpt_path, codec, n_batches=4, batch_size=64):
 
 
 def test_seq(ckpt_path, codec, n_batches=4, batch_size=64):
-    ckpt = torch.load(ckpt_path, map_location=DEVICE)
+    ckpt = torch.load(ckpt_path, map_location=DEVICE, weights_only=True)
     enc = SeqEncoder(ckpt["n_bits_per_chunk"]).to(DEVICE); dec = SeqDecoder(ckpt["n_bits_per_chunk"]).to(DEVICE)
     enc.load_state_dict(ckpt["encoder"]); dec.load_state_dict(ckpt["decoder"])
     enc.eval(); dec.eval()
@@ -143,7 +143,7 @@ def test_seq(ckpt_path, codec, n_batches=4, batch_size=64):
 
 
 def test_stego(ckpt_path, codec, n_batches=4, batch_size=64):
-    ckpt = torch.load(ckpt_path, map_location=DEVICE)
+    ckpt = torch.load(ckpt_path, map_location=DEVICE, weights_only=True)
     n_bits = ckpt["n_bits"]; pert = ckpt.get("perturbation_scale", 0.5)
     enc = StegEncoder(n_bits).to(DEVICE); dec = StegDecoder(n_bits).to(DEVICE)
     enc.load_state_dict(ckpt["encoder"]); dec.load_state_dict(ckpt["decoder"])

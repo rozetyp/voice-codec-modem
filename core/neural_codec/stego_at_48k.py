@@ -21,7 +21,7 @@ from opus_mode_compare import opus_round_trip_batch
 
 def main():
     ckpt_path = str(REPO_ROOT / "core/neural_codec/stego/ckpt_stego_p3.pt")
-    ckpt = torch.load(ckpt_path, map_location=DEVICE)
+    ckpt = torch.load(ckpt_path, map_location=DEVICE, weights_only=True)
     n_bits = ckpt["n_bits"]
     pert_scale = ckpt.get("perturbation_scale", 0.5)
     enc = StegEncoder(n_bits).to(DEVICE); dec = StegDecoder(n_bits).to(DEVICE)

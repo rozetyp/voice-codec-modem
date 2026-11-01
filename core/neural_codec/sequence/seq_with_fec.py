@@ -26,7 +26,7 @@ from neural_with_fec import InterleavedRS, bytes_to_bits, bits_to_bytes
 def measure(ckpt_path: str, n_data_bytes: int, n_seeds: int = 5,
             fec_n_total: int = 255, fec_n_data: int = 191, fec_depth: int = 8,
             batch_size: int = 128):
-    ckpt = torch.load(ckpt_path, map_location=DEVICE)
+    ckpt = torch.load(ckpt_path, map_location=DEVICE, weights_only=True)
     n_bits_per_chunk = ckpt["n_bits_per_chunk"]
     n_bits_total = n_bits_per_chunk * N_CHUNKS
     enc = SeqEncoder(n_bits_per_chunk).to(DEVICE)
@@ -43,7 +43,7 @@ def measure(ckpt_path: str, n_data_bytes: int, n_seeds: int = 5,
           f"FEC=RS({fec_n_total},{fec_n_data}) depth={fec_depth}")
     print(f"{'seed':>4}  {'raw_BER':>8}  {'fail_blks':>9}  {'post_BER':>9}")
 
-    raws = []; posts = []; fails = []
+    raws = []; posts = []; fails = []; total_errs = total_bits = 0
     for seed in range(n_seeds):
         rng = np.random.default_rng(seed)
         data = bytes(rng.integers(0, 256, n_data_bytes).tolist())
@@ -70,9 +70,11 @@ def measure(ckpt_path: str, n_data_bytes: int, n_seeds: int = 5,
         decoded = decoded[:n_data_bytes]
         bx = bytes_to_bits(data); by = bytes_to_bits(decoded)[:len(bx)]
         post_ber = float(np.mean(np.array(bx) != np.array(by)))
+        total_errs += int(np.sum(np.array(bx) != np.array(by))); total_bits += len(bx)
         print(f"  {seed:>2}    {raw_ber*100:>6.3f}%  {n_fail:>7}     {post_ber*100:>7.4f}%")
         raws.append(raw_ber); posts.append(post_ber); fails.append(n_fail)
     print(f"  AVG   {np.mean(raws)*100:>6.3f}%  {np.mean(fails):>7.1f}     {np.mean(posts)*100:>7.4f}%")
+    print(f"TOTAL payload errors ({total_errs}/{total_bits} bits)")
 
 
 if __name__ == "__main__":

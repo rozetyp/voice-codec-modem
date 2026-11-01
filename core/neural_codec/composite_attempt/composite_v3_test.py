@@ -47,13 +47,13 @@ def main():
     args = ap.parse_args()
     out_dir = Path(args.out_dir); out_dir.mkdir(exist_ok=True)
 
-    seq_ckpt = torch.load(args.seq_ckpt, map_location=DEVICE)
+    seq_ckpt = torch.load(args.seq_ckpt, map_location=DEVICE, weights_only=True)
     n_bits_seq = seq_ckpt["n_bits_per_chunk"]; n_bits_seq_total = n_bits_seq * N_CHUNKS
     seq_enc = SeqEncoder(n_bits_seq).to(DEVICE); seq_dec = SeqDecoder(n_bits_seq).to(DEVICE)
     seq_enc.load_state_dict(seq_ckpt["encoder"]); seq_dec.load_state_dict(seq_ckpt["decoder"])
     seq_enc.eval(); seq_dec.eval()
 
-    hb_ckpt = torch.load(args.hb_ckpt, map_location=DEVICE)
+    hb_ckpt = torch.load(args.hb_ckpt, map_location=DEVICE, weights_only=True)
     n_bits_hb = hb_ckpt["n_bits"]
     hb_enc = HighBandEncoder(n_bits=n_bits_hb).to(DEVICE); hb_dec = HighBandDecoder(n_bits=n_bits_hb).to(DEVICE)
     hb_enc.load_state_dict(hb_ckpt["encoder"]); hb_dec.load_state_dict(hb_ckpt["decoder"])

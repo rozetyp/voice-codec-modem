@@ -37,7 +37,7 @@ SYMBOL_N = SR * SYMBOL_MS // 1000
 
 
 def encoder_output(ckpt_path: str, n_batches: int = 8, batch_size: int = 64):
-    ckpt = torch.load(ckpt_path, map_location=DEVICE)
+    ckpt = torch.load(ckpt_path, map_location=DEVICE, weights_only=True)
     n_bits = ckpt["n_bits"]
     enc = Encoder(n_bits=n_bits).to(DEVICE)
     enc.load_state_dict(ckpt["encoder"]); enc.eval()
@@ -91,7 +91,7 @@ def evaluate(ckpts: dict, real_paths: list[Path], disc_ckpt: str | None = None):
 
     disc = None
     if disc_ckpt and Path(disc_ckpt).exists():
-        st = torch.load(disc_ckpt, map_location=DEVICE)
+        st = torch.load(disc_ckpt, map_location=DEVICE, weights_only=True)
         if "discriminator" in st:
             disc = Discriminator().to(DEVICE)
             disc.load_state_dict(st["discriminator"]); disc.eval()

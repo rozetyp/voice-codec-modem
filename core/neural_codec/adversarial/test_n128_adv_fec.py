@@ -17,7 +17,7 @@ from neural_with_fec import InterleavedRS, bytes_to_bits, bits_to_bytes
 
 
 def test(ckpt_path, n_data, n_total, n_data_bytes=1900, n_seeds=5):
-    ckpt = torch.load(ckpt_path, map_location=DEVICE)
+    ckpt = torch.load(ckpt_path, map_location=DEVICE, weights_only=True)
     n_bits = ckpt["n_bits"]
     enc = Encoder(n_bits=n_bits).to(DEVICE)
     dec = Decoder(n_bits=n_bits).to(DEVICE)

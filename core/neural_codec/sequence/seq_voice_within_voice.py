@@ -61,7 +61,7 @@ def main():
              sps.resample_poly(ref_8k.astype(np.float32) / 32768, 2, 1), 16000)
 
     # Load seq codec
-    ckpt = torch.load(args.ckpt, map_location=DEVICE)
+    ckpt = torch.load(args.ckpt, map_location=DEVICE, weights_only=True)
     n_bits_per_chunk = ckpt["n_bits_per_chunk"]
     n_bits_total = n_bits_per_chunk * N_CHUNKS
     enc = SeqEncoder(n_bits_per_chunk).to(DEVICE)

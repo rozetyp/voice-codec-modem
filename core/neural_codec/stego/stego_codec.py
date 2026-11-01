@@ -140,7 +140,7 @@ def train(
     enc = StegEncoder(n_bits).to(DEVICE)
     dec = StegDecoder(n_bits).to(DEVICE)
     if init_ckpt and Path(init_ckpt).exists():
-        st = torch.load(init_ckpt, map_location=DEVICE)
+        st = torch.load(init_ckpt, map_location=DEVICE, weights_only=True)
         enc.load_state_dict(st["encoder"]); dec.load_state_dict(st["decoder"])
         print(f"# loaded init checkpoint: {init_ckpt}")
     n_p = sum(p.numel() for p in enc.parameters()) + sum(p.numel() for p in dec.parameters())

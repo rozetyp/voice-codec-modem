@@ -67,7 +67,7 @@ def opus_round_trip_batch(audio_t: torch.Tensor, application: str, bitrate_kbps:
 
 
 def test_iid(ckpt_path: str, n_batches: int = 4, batch_size: int = 64, **opus_kwargs):
-    ckpt = torch.load(ckpt_path, map_location=DEVICE)
+    ckpt = torch.load(ckpt_path, map_location=DEVICE, weights_only=True)
     n_bits = ckpt["n_bits"]
     enc = IIDEncoder(n_bits=n_bits).to(DEVICE)
     dec = IIDDecoder(n_bits=n_bits).to(DEVICE)
@@ -87,7 +87,7 @@ def test_iid(ckpt_path: str, n_batches: int = 4, batch_size: int = 64, **opus_kw
 
 
 def test_highband(ckpt_path: str, n_batches: int = 4, batch_size: int = 64, **opus_kwargs):
-    ckpt = torch.load(ckpt_path, map_location=DEVICE)
+    ckpt = torch.load(ckpt_path, map_location=DEVICE, weights_only=True)
     n_bits = ckpt["n_bits"]
     enc = HighBandEncoder(n_bits=n_bits).to(DEVICE)
     dec = HighBandDecoder(n_bits=n_bits).to(DEVICE)
@@ -108,7 +108,7 @@ def test_highband(ckpt_path: str, n_batches: int = 4, batch_size: int = 64, **op
 
 
 def test_seq(ckpt_path: str, n_batches: int = 4, batch_size: int = 64, **opus_kwargs):
-    ckpt = torch.load(ckpt_path, map_location=DEVICE)
+    ckpt = torch.load(ckpt_path, map_location=DEVICE, weights_only=True)
     n_bits = ckpt["n_bits_per_chunk"] * N_CHUNKS
     enc = SeqEncoder(ckpt["n_bits_per_chunk"]).to(DEVICE)
     dec = SeqDecoder(ckpt["n_bits_per_chunk"]).to(DEVICE)

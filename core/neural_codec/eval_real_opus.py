@@ -14,7 +14,7 @@ import torch
 from neural_codec import Encoder, Decoder, real_opus_batch, DEVICE, SR, SYMBOL_MS
 
 def evaluate(ckpt_path: str, n_seeds: int = 5, batch_size: int = 256, bitrate_kbps: int = 24):
-    ckpt = torch.load(ckpt_path, map_location=DEVICE)
+    ckpt = torch.load(ckpt_path, map_location=DEVICE, weights_only=True)
     n_bits = ckpt["n_bits"]
     enc = Encoder(n_bits=n_bits).to(DEVICE)
     dec = Decoder(n_bits=n_bits).to(DEVICE)

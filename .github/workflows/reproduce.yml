@@ -1,0 +1,40 @@
+name: reproduce
+
+# Re-runs every row of the README's Results table on a clean Linux runner (CPU only),
+# through real ffmpeg libopus and libopencore-amrnb. The full log is in the job summary.
+on:
+  push:
+    branches: [main]
+    paths: ["core/**", "app/static/cover.wav", "experiments/test_prosody_modem.py", "reproduce.sh", "requirements.txt", ".github/workflows/reproduce.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  reproduce:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: System codecs
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ffmpeg codec2 libopus0
+          ffmpeg -hide_banner -encoders | grep -E "libopus|libopencore_amrnb"
+      - name: Python deps (CPU torch)
+        run: |
+          pip install --extra-index-url https://download.pytorch.org/whl/cpu -r requirements.txt
+          pip install opuslib==3.0.1 "setuptools<80"
+          pip install --no-build-isolation pyworld==0.3.5
+      - name: Reproduce
+        run: |
+          set -o pipefail
+          PYTHON=python ./reproduce.sh 2>&1 | tee reproduce.log
+      - name: Summary
+        if: always()
+        run: |
+          { echo '```'; cat reproduce.log 2>/dev/null; echo '```'; } >> "$GITHUB_STEP_SUMMARY"

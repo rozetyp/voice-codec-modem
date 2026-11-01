@@ -69,7 +69,7 @@ def bits_to_bytes(bits):
 
 def measure_with_fec(ckpt_path: str, n_data_bytes: int, n_seeds: int = 5,
                      fec_n_total: int = 255, fec_n_data: int = 191, fec_depth: int = 8):
-    ckpt = torch.load(ckpt_path, map_location=DEVICE)
+    ckpt = torch.load(ckpt_path, map_location=DEVICE, weights_only=True)
     n_bits_per_sym = ckpt["n_bits"]
     enc = Encoder(n_bits=n_bits_per_sym).to(DEVICE)
     dec = Decoder(n_bits=n_bits_per_sym).to(DEVICE)
@@ -128,5 +128,6 @@ if __name__ == "__main__":
     ap.add_argument("ckpt")
     ap.add_argument("--data_bytes", type=int, default=1900)
     ap.add_argument("--seeds", type=int, default=5)
+    ap.add_argument("--rs_data", type=int, default=191, help="RS(255,k) data bytes")
     args = ap.parse_args()
-    measure_with_fec(args.ckpt, n_data_bytes=args.data_bytes, n_seeds=args.seeds)
+    measure_with_fec(args.ckpt, n_data_bytes=args.data_bytes, n_seeds=args.seeds, fec_n_data=args.rs_data)

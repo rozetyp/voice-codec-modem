@@ -74,7 +74,7 @@ def neural_channel_send(data_bytes: bytes, ckpt_path: str,
                          fec_n_data: int = 191, fec_n_total: int = 255, fec_depth: int = 8,
                          batch_size: int = 256):
     """Send data_bytes through neural-codec + RS-FEC + real libopus, return recovered bytes."""
-    ckpt = torch.load(ckpt_path, map_location=DEVICE)
+    ckpt = torch.load(ckpt_path, map_location=DEVICE, weights_only=True)
     n_bits_per_sym = ckpt["n_bits"]
     enc = Encoder(n_bits=n_bits_per_sym).to(DEVICE)
     dec = Decoder(n_bits=n_bits_per_sym).to(DEVICE)

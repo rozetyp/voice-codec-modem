@@ -299,7 +299,7 @@ class OpusIIDPipeline:
     description = "IID neural codec — fastest rate, modem-tone carrier (Opus 24k VOIP target)"
 
     def __init__(self):
-        ckpt = torch.load(CKPT_IID, map_location=DEVICE, weights_only=False)
+        ckpt = torch.load(CKPT_IID, map_location=DEVICE, weights_only=True)
         self.n_bits = ckpt["n_bits"]
         self.enc = Encoder(n_bits=self.n_bits).to(DEVICE).eval()
         self.dec = Decoder(n_bits=self.n_bits).to(DEVICE).eval()
@@ -381,7 +381,7 @@ class StegoOpusPipeline:
     description = "Real-speech cover with embedded data — sounds like a person talking with audible hiss"
 
     def __init__(self):
-        ckpt = torch.load(CKPT_STEG, map_location=DEVICE, weights_only=False)
+        ckpt = torch.load(CKPT_STEG, map_location=DEVICE, weights_only=True)
         self.n_bits = ckpt["n_bits"]
         self.pert_scale = ckpt.get("perturbation_scale", 0.5)
         self.enc = StegEncoder(n_bits=self.n_bits).to(DEVICE).eval()
@@ -480,7 +480,7 @@ class StegoAmrnbPipeline:
     description = "Cellular-voice (AMR-NB) variant — slowest, but only one that survives 2G/3G voice"
 
     def __init__(self):
-        ckpt = torch.load(CKPT_AMR, map_location=DEVICE, weights_only=False)
+        ckpt = torch.load(CKPT_AMR, map_location=DEVICE, weights_only=True)
         self.n_bits = ckpt["n_bits"]
         self.pert_scale = ckpt.get("perturbation_scale", 0.5)
         self.enc = StegEncoder(n_bits=self.n_bits).to(DEVICE).eval()

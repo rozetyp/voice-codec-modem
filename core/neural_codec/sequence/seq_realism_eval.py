@@ -33,7 +33,7 @@ SYMBOL_N = SR * SYMBOL_MS // 1000
 
 def encode_iid(ckpt_path, n_blocks=64):
     """Generate 1920-sample blocks from an IID encoder by stitching 4 × 30 ms outputs."""
-    ckpt = torch.load(ckpt_path, map_location=DEVICE)
+    ckpt = torch.load(ckpt_path, map_location=DEVICE, weights_only=True)
     enc = IIDEncoder(n_bits=ckpt["n_bits"]).to(DEVICE); enc.load_state_dict(ckpt["encoder"]); enc.eval()
     with torch.no_grad():
         bits = torch.randint(0, 2, (n_blocks * N_CHUNKS, ckpt["n_bits"]), device=DEVICE).float()
@@ -43,7 +43,7 @@ def encode_iid(ckpt_path, n_blocks=64):
 
 
 def encode_seq(ckpt_path, n_blocks=64):
-    ckpt = torch.load(ckpt_path, map_location=DEVICE)
+    ckpt = torch.load(ckpt_path, map_location=DEVICE, weights_only=True)
     n_bits_per_chunk = ckpt["n_bits_per_chunk"]
     enc = SeqEncoder(n_bits_per_chunk).to(DEVICE); enc.load_state_dict(ckpt["encoder"]); enc.eval()
     with torch.no_grad():

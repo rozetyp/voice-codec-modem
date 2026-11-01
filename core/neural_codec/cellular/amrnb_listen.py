@@ -23,7 +23,7 @@ from adversarial_realism import RealSpeechSampler
 def main():
     ckpt_path = str(REPO_ROOT / "core/neural_codec/cellular/ckpt_amrnb_real.pt")
     out_dir = Path(str(REPO_ROOT / "core" / "neural_codec" / "cellular" / "listen_samples")); out_dir.mkdir(exist_ok=True)
-    ckpt = torch.load(ckpt_path, map_location=DEVICE)
+    ckpt = torch.load(ckpt_path, map_location=DEVICE, weights_only=True)
     n_bits = ckpt["n_bits"]; pert = ckpt.get("perturbation_scale", 0.5)
     enc = StegEncoder(n_bits).to(DEVICE); dec = StegDecoder(n_bits).to(DEVICE)
     enc.load_state_dict(ckpt["encoder"]); dec.load_state_dict(ckpt["decoder"])

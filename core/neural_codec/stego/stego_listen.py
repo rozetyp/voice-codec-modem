@@ -30,7 +30,7 @@ def main():
     args = ap.parse_args()
     out_dir = Path(args.out_dir); out_dir.mkdir(exist_ok=True)
 
-    ckpt = torch.load(args.ckpt, map_location=DEVICE)
+    ckpt = torch.load(args.ckpt, map_location=DEVICE, weights_only=True)
     n_bits = ckpt["n_bits"]
     pert_scale = ckpt.get("perturbation_scale", 0.5)
     enc = StegEncoder(n_bits).to(DEVICE); dec = StegDecoder(n_bits).to(DEVICE)
